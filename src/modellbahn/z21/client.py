@@ -103,10 +103,20 @@ class Z21UdpClient:
         self._transport.sendto(dataset)
 
     async def _keepalive_loop(self) -> None:
-        """Sendet periodisch eine Statusabfrage (Intervall < 60 s Z21-Timeout)."""
+        """Haelt die Registrierung aktiv und macht die Verbindung selbstheilend.
+
+        Sendet periodisch (Intervall < 60 s Z21-Timeout) nicht nur eine
+        Statusabfrage, sondern erneuert auch die Broadcast-Flags und fragt den
+        SystemState ab. Falls das initiale Flags-Paket verloren ging oder die
+        Zentrale den Client zwischenzeitlich verworfen hat (z. B. nach einem
+        nicht sauberen Beenden), erholt sich die Verbindung so beim naechsten
+        Zyklus automatisch, statt dauerhaft stumm zu bleiben.
+        """
         while True:
             await asyncio.sleep(self._keepalive_interval_s)
             try:
+                self.send(protocol.build_set_broadcastflags(self._broadcast_flags))
                 self.send(protocol.build_get_status())
+                self.send(protocol.build_systemstate_getdata())
             except RuntimeError:
                 return
