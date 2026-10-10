@@ -10,14 +10,18 @@ from dataclasses import dataclass, field
 
 from modellbahn.z21.protocol import HEADER_LAN_X
 
+# Z21-LAN-Header
+HEADER_SYSTEMSTATE = 0x84  # LAN_SYSTEMSTATE_DATACHANGED
+
 # X-Header empfangener X-Bus-Meldungen
 XHEADER_LOCO_INFO = 0xEF
 XHEADER_STATUS = 0x62  # LAN_X_STATUS_CHANGED, DB0 0x22
 XHEADER_BC = 0x61  # Track-Power-Broadcasts: DB0 0x00=OFF, 0x01=ON
 
-# Bits im CentralState / Status-Byte (siehe Z21-Spezifikation)
+# Bits im CentralState (siehe Z21-Spezifikation)
 CS_EMERGENCY_STOP = 0x01
 CS_TRACK_VOLTAGE_OFF = 0x02
+CS_SHORT_CIRCUIT = 0x04
 
 
 @dataclass
@@ -35,6 +39,19 @@ class TrackPower:
     """Zustand der Gleisspannung aus einem Broadcast/Status."""
 
     on: bool
+
+
+@dataclass
+class SystemState:
+    """Ausschnitt aus LAN_SYSTEMSTATE_DATACHANGED (header 0x84).
+
+    Fuer den MVP interessieren Gleisspannung, Kurzschluss und Nothalt; weitere
+    Felder (Strom, Spannung, Temperatur) koennen bei Bedarf ergaenzt werden.
+    """
+
+    track_power_on: bool
+    short_circuit: bool
+    emergency_stop: bool
 
 
 def _decode_address(adr_msb: int, adr_lsb: int) -> int:
@@ -72,8 +89,19 @@ def _decode_functions(data: bytes) -> dict[int, bool]:
     return functions
 
 
-def parse_message(header: int, data: bytes) -> LocoInfo | TrackPower | None:
+def parse_message(header: int, data: bytes) -> LocoInfo | TrackPower | SystemState | None:
     """Wertet einen empfangenen Datensatz aus; None bei irrelevanten Meldungen."""
+    if header == HEADER_SYSTEMSTATE and len(data) >= 13:
+        # SystemState-Layout (16 Byte, little endian): CentralState an Offset 12.
+        # 0..1 MainCurrent, 2..3 ProgCurrent, 4..5 FilteredMainCurrent,
+        # 6..7 Temperature, 8..9 SupplyVoltage, 10..11 VCCVoltage, 12 CentralState.
+        central_state = data[12]
+        return SystemState(
+            track_power_on=not (central_state & CS_TRACK_VOLTAGE_OFF),
+            short_circuit=bool(central_state & CS_SHORT_CIRCUIT),
+            emergency_stop=bool(central_state & CS_EMERGENCY_STOP),
+        )
+
     if header != HEADER_LAN_X or not data:
         return None
     x_header = data[0]

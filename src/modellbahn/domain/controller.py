@@ -56,6 +56,8 @@ class LocoController:
             loco.functions.update(message.functions)
         elif isinstance(message, messages.TrackPower):
             self.state.track_power_on = message.on
+        elif isinstance(message, messages.SystemState):
+            self.state.track_power_on = message.track_power_on
         self._notify()
 
     # --- ausgehende Kommandos ------------------------------------------

@@ -44,17 +44,28 @@ class Z21UdpClient:
     on_raw(header, data) wird fuer jeden empfangenen Datensatz aufgerufen.
     """
 
+    #: Standard-Broadcast-Flags: Fahren/Schalten + Systemzustand + Lok-Info ohne Abo.
+    DEFAULT_BROADCAST_FLAGS = (
+        protocol.BROADCAST_DRIVE_SWITCH
+        | protocol.BROADCAST_SYSTEMSTATE
+        | protocol.BROADCAST_LOCO_INFO_ALL
+    )
+
     def __init__(
         self,
         host: str,
         port: int,
         on_raw: RawCallback,
         keepalive_interval_s: float = 20.0,
+        broadcast_flags: int | None = None,
     ) -> None:
         self._host = host
         self._port = port
         self._on_raw = on_raw
         self._keepalive_interval_s = keepalive_interval_s
+        self._broadcast_flags = (
+            self.DEFAULT_BROADCAST_FLAGS if broadcast_flags is None else broadcast_flags
+        )
         self._transport: asyncio.DatagramTransport | None = None
         self._keepalive_task: asyncio.Task[None] | None = None
 
@@ -65,8 +76,11 @@ class Z21UdpClient:
             remote_addr=(self._host, self._port),
         )
         self._transport = transport
-        # Initiale Statusabfrage; haelt zugleich die Registrierung aktiv.
+        # Broadcast-Flags setzen, damit Lok-Info/Status asynchron eintreffen.
+        self.send(protocol.build_set_broadcastflags(self._broadcast_flags))
+        # Initiale Abfragen; halten zugleich die Registrierung aktiv.
         self.send(protocol.build_get_status())
+        self.send(protocol.build_systemstate_getdata())
         self._keepalive_task = asyncio.create_task(self._keepalive_loop())
 
     async def stop(self) -> None:

@@ -65,6 +65,11 @@ def build_get_status() -> bytes:
     return build_xbus(0x21, bytes([0x24]))
 
 
+def build_systemstate_getdata() -> bytes:
+    """LAN_SYSTEMSTATE_GETDATA (Header 0x85): fordert den Systemzustand an."""
+    return build_dataset(0x85, b"")
+
+
 def build_track_power_on() -> bytes:
     """LAN_X_SET_TRACK_POWER_ON (X-Header 0x21, DB0 0x81)."""
     return build_xbus(0x21, bytes([0x81]))
@@ -78,6 +83,20 @@ def build_track_power_off() -> bytes:
 def build_logoff() -> bytes:
     """LAN_LOGOFF (Header 0x30) zum sauberen Abmelden des Clients."""
     return build_dataset(0x30, b"")
+
+
+# Broadcast-Flags (LAN_SET_BROADCASTFLAGS):
+#   0x00000001 = Fahren/Schalten-Broadcasts (u. a. LAN_X_LOCO_INFO, Track-Power)
+#   0x00000100 = Aenderungen des Z21-Systemzustands (LAN_SYSTEMSTATE_DATACHANGED)
+#   0x00010000 = LAN_X_LOCO_INFO auch ohne vorheriges Abo pro Lok (ab FW 1.20)
+BROADCAST_DRIVE_SWITCH = 0x00000001
+BROADCAST_SYSTEMSTATE = 0x00000100
+BROADCAST_LOCO_INFO_ALL = 0x00010000
+
+
+def build_set_broadcastflags(flags: int) -> bytes:
+    """LAN_SET_BROADCASTFLAGS (Header 0x50), 4 Byte little endian."""
+    return build_dataset(0x50, flags.to_bytes(4, "little"))
 
 
 # --- Fahren (DCC 128 Fahrstufen) -------------------------------------------
@@ -95,6 +114,16 @@ def build_loco_drive(address: int, speed: int, forward: bool) -> bytes:
     speed_value = 0 if speed == 0 else speed + 1  # 1 ist fuer Nothalt reserviert
     db3 = (0x80 if forward else 0x00) | (speed_value & 0x7F)
     return build_xbus(0xE4, bytes([0x13, msb, lsb, db3]))
+
+
+def build_get_loco_info(address: int) -> bytes:
+    """LAN_X_GET_LOCO_INFO (X-Header 0xE3, DB0 0xF0, dann Adresse).
+
+    Rein lesend: fordert den aktuellen Lok-Zustand an und abonniert zugleich
+    kuenftige LAN_X_LOCO_INFO-Updates fuer diese Lok.
+    """
+    msb, lsb = encode_loco_address(address)
+    return build_xbus(0xE3, bytes([0xF0, msb, lsb]))
 
 
 def build_loco_function(address: int, function: int, on: bool) -> bytes:

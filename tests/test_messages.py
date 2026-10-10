@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from modellbahn.z21.messages import LocoInfo, TrackPower, parse_message
+from modellbahn.z21.messages import LocoInfo, SystemState, TrackPower, parse_message
 
 
 def _loco_info_payload(adr: int, db3: int, db4: int) -> bytes:
@@ -29,6 +29,36 @@ def test_parse_track_power_broadcast() -> None:
     off = parse_message(0x40, bytes([0x61, 0x00, 0x61]))
     assert isinstance(on, TrackPower) and on.on is True
     assert isinstance(off, TrackPower) and off.on is False
+
+
+def test_parse_systemstate_track_power_on() -> None:
+    # 16 Byte SystemState; CentralState (Offset 12) = 0x00 => Spannung an
+    data = bytes([0x00] * 16)
+    msg = parse_message(0x84, data)
+    assert isinstance(msg, SystemState)
+    assert msg.track_power_on is True
+    assert msg.short_circuit is False
+    assert msg.emergency_stop is False
+
+
+def test_parse_systemstate_track_power_off_and_short_circuit() -> None:
+    data = bytearray(16)
+    data[12] = 0x02 | 0x04  # csTrackVoltageOff | csShortCircuit
+    msg = parse_message(0x84, bytes(data))
+    assert isinstance(msg, SystemState)
+    assert msg.track_power_on is False
+    assert msg.short_circuit is True
+
+
+def test_parse_systemstate_real_sample_from_hardware() -> None:
+    # Reale Z21-Antwort (Spannung an): 16 Byte, CentralState an Offset 12 = 0x00
+    data = bytes.fromhex("3700030043001f000d4e662e00000000")
+    assert len(data) == 16
+    msg = parse_message(0x84, data)
+    assert isinstance(msg, SystemState)
+    assert msg.track_power_on is True
+    assert msg.short_circuit is False
+    assert msg.emergency_stop is False
 
 
 def test_parse_unknown_returns_none() -> None:
