@@ -60,11 +60,13 @@ class Z21UdpClient:
         on_raw: RawCallback,
         keepalive_interval_s: float = 5.0,
         broadcast_flags: int | None = None,
+        local_port: int = 0,
     ) -> None:
         self._host = host
         self._port = port
         self._on_raw = on_raw
         self._keepalive_interval_s = keepalive_interval_s
+        self._local_port = local_port
         self._broadcast_flags = (
             self.DEFAULT_BROADCAST_FLAGS if broadcast_flags is None else broadcast_flags
         )
@@ -78,8 +80,12 @@ class Z21UdpClient:
 
     async def start(self) -> None:
         loop = asyncio.get_running_loop()
+        # Fester lokaler Port (local_port > 0) sorgt dafuer, dass die Z21 das
+        # Backend nach einem Neustart als denselben Client wiedererkennt.
+        local_addr = ("0.0.0.0", self._local_port) if self._local_port else None
         transport, _ = await loop.create_datagram_endpoint(
             lambda: _Z21DatagramProtocol(self._on_raw, self._mark_received),
+            local_addr=local_addr,
             remote_addr=(self._host, self._port),
         )
         self._transport = transport

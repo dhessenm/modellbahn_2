@@ -5,8 +5,11 @@
 [z21]
 # IP-Adresse der Z21-Zentrale im lokalen Netz.
 host = "192.168.0.111"
-# UDP-Port: 21105 (bevorzugt) oder 21106.
+# UDP-Port der Zentrale: 21105 (bevorzugt) oder 21106.
 port = 21105
+# Lokaler UDP-Quellport (fest, damit die Z21 den Client nach Neustart
+# wiedererkennt). 0 = zufaelliger Port.
+local_port = 21105
 
 [keepalive]
 # Intervall in Sekunden. Bewusst kurz (nicht nur < Z21-Timeout ~60 s): haeufiges

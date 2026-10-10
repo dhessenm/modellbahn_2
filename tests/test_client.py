@@ -31,6 +31,7 @@ async def test_start_sends_broadcastflags_status_and_systemstate(
 
     async def fake_create_endpoint(
         protocol_factory: Callable[[], asyncio.DatagramProtocol],
+        local_addr: tuple[str, int] | None = None,
         remote_addr: tuple[str, int] | None = None,
     ) -> tuple[asyncio.DatagramTransport, asyncio.DatagramProtocol]:
         proto = protocol_factory()
@@ -60,6 +61,7 @@ async def test_handshake_retries_until_response(monkeypatch: Any) -> None:
 
     async def fake_create_endpoint(
         protocol_factory: Callable[[], asyncio.DatagramProtocol],
+        local_addr: tuple[str, int] | None = None,
         remote_addr: tuple[str, int] | None = None,
     ) -> tuple[asyncio.DatagramTransport, asyncio.DatagramProtocol]:
         proto = protocol_factory()
