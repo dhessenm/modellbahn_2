@@ -60,6 +60,13 @@ Auslesen von Rückmeldern sowie zum Lesen/Schreiben von Decoder-CVs.
 - Prüfsumme (XOR über den X-Bus-Befehl) immer korrekt berechnen und validieren.
 - Little-Endian beim Serialisieren/Deserialisieren konsequent beachten.
 - Broadcast-/Status-Meldungen asynchron behandeln — die Zentrale sendet unaufgefordert.
-- Verbindung regelmäßig über eine Statusabfrage aktiv halten (die Zentrale kann inaktive
-  Clients nach einer Zeit entfernen).
+- **Keep-Alive:** Jeder Client muss **mindestens einmal pro Minute** mit der Z21 kommunizieren,
+  sonst wird er aus der Liste der aktiven Teilnehmer entfernt. Daher periodisch (deutlich unter
+  60 s) eine Statusabfrage senden, z. B. `LAN_X_GET_STATUS` (Header `0x40`, X-Header `0x21`,
+  DB0 `0x24`) oder `LAN_SYSTEMSTATE_GETDATA` (Header `0x85`).
+- **Sauberes Abmelden:** Beim Beenden `LAN_LOGOFF` (Header `0x30`) senden; dabei dieselbe
+  Portnummer wie bei der Anmeldung verwenden.
+- **Gleisspannung/Status:** `LAN_X_SET_TRACK_POWER_ON` (DB0 `0x81`) /
+  `LAN_X_SET_TRACK_POWER_OFF` (DB0 `0x80`); Systemstatus inkl. `CentralState` über
+  `LAN_SYSTEMSTATE_DATACHANGED`/`LAN_SYSTEMSTATE_GETDATA`.
 - Konkrete Byte-Layouts, Werte und Flags vor der Implementierung im Original-PDF nachschlagen.
