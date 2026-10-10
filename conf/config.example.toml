@@ -9,5 +9,6 @@ host = "192.168.0.111"
 port = 21105
 
 [keepalive]
-# Intervall in Sekunden, deutlich unter dem Z21-Timeout von ~60 s.
-interval_s = 20.0
+# Intervall in Sekunden. Bewusst kurz (nicht nur < Z21-Timeout ~60 s): haeufiges
+# Pollen stellt die Verbindung schnell und robust her.
+interval_s = 5.0

@@ -58,7 +58,7 @@ class Z21UdpClient:
         host: str,
         port: int,
         on_raw: RawCallback,
-        keepalive_interval_s: float = 20.0,
+        keepalive_interval_s: float = 5.0,
         broadcast_flags: int | None = None,
     ) -> None:
         self._host = host

@@ -19,8 +19,12 @@ class Settings(BaseSettings):
     z21_host: str = "192.168.0.111"
     z21_port: int = 21105
 
-    # Keep-Alive: Intervall deutlich unter dem Z21-Timeout von ~60 s.
-    keepalive_interval_s: float = 20.0
+    # Keep-Alive-/Poll-Intervall. Bewusst kurz (nicht nur < 60 s Z21-Timeout):
+    # Die GET_STATUS-Antwort kommt zuverlaessig an den eigenen UDP-Port, waehrend
+    # unaufgeforderte Broadcasts anfangs an einen alten, noch registrierten Port
+    # gehen koennen. Haeufiges Pollen stellt die Verbindung daher schnell und
+    # robust her (statt im schlechten Fall bis zum ersten Keep-Alive stumm zu bleiben).
+    keepalive_interval_s: float = 5.0
 
 
 def get_settings() -> Settings:
