@@ -1,8 +1,8 @@
 # Technologie-Stack
 
-> Status: früh. Festgelegt sind **Python**, **FastAPI** als Backend-Framework und eine **Web-UI**
-> (Client-Server). Konkrete Frontend-Technik und Paketmanager sind noch offen. Es existiert noch
-> kein Anwendungscode. Diese Datei beim Festlegen der offenen Punkte ergänzen.
+> Status: früh. Festgelegt sind **Python** + **FastAPI** (Backend) und **Vue 3 + TypeScript**
+> (Frontend), Client-Server. Paketmanager und Python-Mindestversion noch offen. Es existiert
+> noch kein Anwendungscode. Diese Datei beim Festlegen der offenen Punkte ergänzen.
 
 ## Festgelegt
 
@@ -12,7 +12,12 @@
 - **Architektur:** Client-Server, stark entkoppelt.
   - **Backend (Python):** kommuniziert per Z21 LAN-Protokoll (UDP) mit der Zentrale und stellt
     dem Web-Client die Schnittstelle bereit.
-  - **Frontend:** Web-UI im Browser, spricht ausschließlich mit dem Backend.
+  - **Frontend:** **Vue 3 + TypeScript** (SPA im Browser), spricht ausschließlich mit dem
+    Backend über dessen REST-API und den Push-Kanal.
+- **Frontend-Stack:** **Vue 3** mit **TypeScript**, Build mit **Vite**. Begründung: reaktive
+  State-Updates passen gut zu den Live-Pushes, flache Lernkurve, gute Testbarkeit, wächst von
+  MVP bis Stellwerk mit. TypeScript ergänzt die Typsicherheit analog zu `mypy`/`pyright` im
+  Backend.
 - **Schnittstelle Backend ↔ Web-UI:**
   - **REST-API (primär):** so weit wie möglich alle Z21-Funktionen (Kommandos + Abfragen) über
     REST-Endpunkte bereitstellen.
@@ -49,18 +54,26 @@ Für das Scoping hier festgehalten, in der ersten Version aber nicht umgesetzt:
 - **Echtzeit-Kanal:** WebSocket oder Server-Sent Events für die Push-Updates (beides von
   FastAPI unterstützt; SSE genügt für reine Server→Client-Updates, WebSocket bei bidirektionalem
   Bedarf).
-- **Frontend-Technik:** einfaches HTML/JS oder ein Framework (z. B. React/Vue) — abhängig vom
-  Umfang des Stellwerks/der UI.
-- **Paketmanager / Umgebung:** z. B. `uv`, `poetry` oder `pip` + `venv` mit `pyproject.toml`.
+- **Frontend-Paketmanager:** npm, pnpm oder yarn (für das Vue/Vite-Projekt).
+- **Backend-Paketmanager / Umgebung:** z. B. `uv`, `poetry` oder `pip` + `venv` mit
+  `pyproject.toml`.
 - **Python-Mindestversion** verbindlich festlegen.
 
 ## Empfohlene Werkzeuge (Python-üblich)
 
-Als Vorschlag, sobald der Stack fixiert wird:
+**Backend (Python):**
 
-- **Test:** `pytest`.
+- **Test:** `pytest` (API-Tests über den FastAPI-TestClient, Fachlogik gegen Mock-Z21-Client).
 - **Linter/Formatter:** `ruff` (Linting + Formatierung) oder `black` + `flake8`.
 - **Typprüfung:** `mypy` oder `pyright` (empfohlen bei binärer Protokoll-Verarbeitung).
+
+**Frontend (Vue 3 + TypeScript):**
+
+- **Build/Dev:** `Vite`.
+- **Unit-/Component-Test:** `Vitest` + `@vue/test-utils` bzw. Vue Testing Library.
+- **E2E-Test:** `Playwright` (oder Cypress).
+- **Linter/Formatter:** `ESLint` + `Prettier`.
+- **Typprüfung:** `vue-tsc` (TypeScript).
 
 ## Technische Anforderungen an den Stack
 
@@ -83,6 +96,11 @@ Als Vorschlag, sobald der Stack fixiert wird:
   Erfolg/Misserfolg dieser Abfragen als Grundlage für den **Verbindungsstatus zur Zentrale**.
   Beim Beenden per `LAN_LOGOFF` sauber abmelden. Der Keep-Alive läuft als Hintergrund-Task im
   Backend (z. B. `asyncio`-Task), unabhängig von Client-Requests.
+- **Konfiguration auslagern:** Umgebungs-/anlagenabhängige Werte nicht hartkodieren, sondern aus
+  Konfigurationsdateien unter `conf/` laden. Dazu gehören insbesondere die **IP-Adresse der
+  Z21-Zentrale**, der UDP-Port (21105/21106) und das Keep-Alive-Intervall. Format offen (z. B.
+  TOML/YAML/`.env`); eine Beispielvorlage einchecken, echte Werte lokal halten, keine Geheimnisse
+  committen.
 - **Entkopplung:** Die Schichten klar trennen und über Schnittstellen/Abstraktionen koppeln:
   - **Z21/Protokoll-Schicht:** reine Kodierung/Dekodierung und UDP-Transport, kennt keine
     Fachlogik.
@@ -94,7 +112,9 @@ Als Vorschlag, sobald der Stack fixiert wird:
 
 ## Häufige Befehle
 
-Platzhalter — konkretisieren, sobald Paketmanager und Framework feststehen:
+Teils noch Platzhalter — konkretisieren, sobald die Paketmanager feststehen.
+
+**Backend (Python):**
 
 ```sh
 # virtuelle Umgebung anlegen und aktivieren
@@ -113,8 +133,30 @@ pytest
 # ruff check . && ruff format .
 ```
 
-> Hinweis: Lang laufende Prozesse wie der Dev-Server im eigenen Terminal starten, nicht als
-> blockierenden Einmalbefehl.
+**Frontend (Vue 3 + TS, im Verzeichnis `frontend/`):**
+
+```sh
+# Abhängigkeiten installieren
+npm install
+
+# Dev-Server starten — im eigenen Terminal
+npm run dev
+
+# Unit-/Component-Tests
+npm run test
+
+# E2E-Tests (Playwright)
+npm run test:e2e
+
+# Typprüfung + Produktions-Build
+npm run build
+
+# Linten / Formatieren
+npm run lint
+```
+
+> Hinweis: Lang laufende Prozesse wie die Dev-Server (`uvicorn ... --reload`, `npm run dev`) im
+> eigenen Terminal starten, nicht als blockierenden Einmalbefehl.
 
 ## Konventionen
 

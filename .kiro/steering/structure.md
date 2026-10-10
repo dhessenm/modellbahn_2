@@ -32,13 +32,17 @@ Aufbau — als Vorschlag, bis die reale Struktur entsteht:
 ```
 modellbahn_2/
 ├── pyproject.toml          # Projekt-/Abhängigkeits-Konfiguration (Paketmanager)
+├── conf/                   # Laufzeit-/Umgebungskonfiguration (z. B. Z21-IP-Adresse, Ports)
 ├── src/
 │   └── modellbahn/         # Python-Backend-Paket
 │       ├── z21/            # Z21/UDP-Anbindung: Protokoll-Kodierung/-Dekodierung, Client
 │       ├── domain/         # Fachlogik: Loks, Weichen, Rückmelder, Blöcke, Zugfahrten
 │       ├── api/            # FastAPI-App: REST-Endpunkte + Push-Kanal (WebSocket/SSE)
 │       └── main.py         # Einstiegspunkt (startet den FastAPI-Server)
-├── frontend/               # Web-UI (Browser-Client); genaue Technik noch offen
+├── frontend/               # Web-UI: Vue 3 + TypeScript, Build mit Vite
+│   ├── package.json        # Frontend-Abhängigkeiten/Skripte
+│   ├── src/                # Vue-Quellcode (Komponenten, Views, Stores, API-Client)
+│   └── public/ | assets/   # statische Assets der Web-UI (Icons, Grafiken, CSS)
 ├── tests/                  # Tests (Spiegelung der src-Struktur)
 └── .kiro/steering/         # Steering-Dokumente
 ```
@@ -63,9 +67,21 @@ modellbahn_2/
   vollständig im Backend.
 - Fachcode nach Domäne gruppieren (Block, Rückmelder, Weiche, Zugfahrt), nicht nur nach Dateityp.
 
+## Konfiguration und Assets
+
+- **Konfiguration** (umgebungs-/anlagenabhängige Werte wie **Z21-IP-Adresse**, Ports,
+  Keep-Alive-Intervall) in Konfigurationsdateien unter `conf/` auslagern, statt sie im Code zu
+  hartkodieren. So lässt sich das Deployment ohne Code-Änderung anpassen.
+- Format offen (z. B. TOML, YAML oder `.env`); eine Beispiel-/Vorlagendatei (z. B.
+  `conf/config.example.toml`) einchecken, die echte Konfiguration bei Bedarf lokal halten.
+- **Keine Geheimnisse** in das Repo committen; `.env`-Dateien sind bereits in `.gitignore`.
+- **Statische Assets** der Web-UI (Icons, Grafiken, CSS) unter `frontend/assets/` ablegen,
+  getrennt vom Backend-Code.
+
 ## Konventionen
 
 - Build-, Lint- und Projektkonfiguration (`pyproject.toml`) im Wurzelverzeichnis ablegen.
+- Laufzeitkonfiguration unter `conf/`, statische UI-Assets unter `frontend/assets/`.
 - Tests unter `tests/` an der `src/`-Struktur ausrichten.
 - Referenzdokumente unter `external_docs/` belassen und nicht mit Quellcode vermischen.
 - Die Dokumente unter `.kiro/steering/` aktuell halten und bei Struktur-/Stack-Änderungen
@@ -73,6 +89,6 @@ modellbahn_2/
 
 ## Noch zu definieren
 
-- Konkrete Frontend-Technik und deren Verzeichnisaufbau unter `frontend/`.
+- Interner Aufbau von `frontend/src/` (Komponenten, Views, State-Management, API-Client).
 - Ob das Backend als installierbares Paket (`src/`-Layout) oder flacher aufgebaut wird.
-- Ablage von statischen Assets und Konfiguration (z. B. Verbindungsdaten der Zentrale).
+- Konkretes Konfigurationsformat unter `conf/` (TOML/YAML/`.env`).
