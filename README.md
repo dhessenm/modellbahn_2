@@ -1,5 +1,7 @@
 # modellbahn_2
 
+[![CI](https://github.com/dhessenm/modellbahn_2/actions/workflows/ci.yml/badge.svg)](https://github.com/dhessenm/modellbahn_2/actions/workflows/ci.yml)
+
 Steuerung einer digitalen Modellbahn-Anlage über eine **Z21-Digitalzentrale** (Roco/Fleischmann).
 Client-Server-Architektur: **FastAPI**-Backend (Python) mit REST-API + Push-Kanal, **Vue 3 + TypeScript**-Frontend (Web-UI).
 
