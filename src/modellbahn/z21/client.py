@@ -90,22 +90,22 @@ class Z21UdpClient:
 
     async def start(self) -> None:
         loop = asyncio.get_running_loop()
-        # Fester lokaler Port (local_port > 0) sorgt dafuer, dass die Z21 das
-        # Backend nach einem Neustart als denselben Client wiedererkennt.
-        local_addr = ("0.0.0.0", self._local_port) if self._local_port else None
+        # UNVERBUNDENES Socket: KEIN remote_addr. Bei einem verbundenen UDP-Socket
+        # meldet das OS asynchrone ICMP-Fehler ("port unreachable") zurueck, die
+        # am Socket haengen bleiben und nachfolgende Sends mit BrokenPipeError
+        # scheitern lassen (reproduzierbar bei schnellem Neustart). Ein
+        # unverbundenes Socket mit explizitem Ziel pro sendto ignoriert das.
+        local_addr = ("0.0.0.0", self._local_port) if self._local_port else ("0.0.0.0", 0)
         transport, _ = await loop.create_datagram_endpoint(
             lambda: _Z21DatagramProtocol(self._on_raw, self._mark_received),
             local_addr=local_addr,
-            remote_addr=(self._host, self._port),
         )
         self._transport = transport
         self._received_any = False
         sockname = transport.get_extra_info("sockname")
-        peername = transport.get_extra_info("peername")
         logger.info(
-            "Z21-UDP-Socket geoeffnet: lokal=%s remote=%s (angefordert %s:%s, local_port=%s)",
+            "Z21-UDP-Socket geoeffnet: lokal=%s ziel=%s:%s (local_port=%s, unverbunden)",
             sockname,
-            peername,
             self._host,
             self._port,
             self._local_port,
@@ -154,7 +154,12 @@ class Z21UdpClient:
         if self._transport is None:
             raise RuntimeError("Z21UdpClient ist nicht gestartet")
         logger.debug("SEND %d B: %s", len(dataset), dataset.hex(" "))
-        self._transport.sendto(dataset)
+        # Explizites Ziel (unverbundenes Socket). OSError defensiv abfangen,
+        # damit ein einmaliger Sendefehler nicht den Keep-Alive-Task beendet.
+        try:
+            self._transport.sendto(dataset, (self._host, self._port))
+        except OSError as exc:
+            logger.warning("SEND fehlgeschlagen: %r", exc)
 
     async def _keepalive_loop(self) -> None:
         """Haelt die Registrierung aktiv und macht die Verbindung selbstheilend.

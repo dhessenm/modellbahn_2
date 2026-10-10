@@ -19,13 +19,11 @@ class Settings(BaseSettings):
     z21_host: str = "192.168.0.111"
     z21_port: int = 21105
 
-    # Lokaler UDP-Quellport. Fest gewaehlt (statt zufaellig vom OS), damit sich
-    # das Backend nach einem Neustart bei der Z21 unter demselben Port anmeldet
-    # und die vorhandene Client-Registrierung erneuert, statt eine zweite,
-    # parallele zu erzeugen (das war Ursache fuer sporadisches 'Keine Verbindung'
-    # nach schnellem Neustart, da die Zentrale Clients ~60 s vorhaelt).
-    # 0 = zufaelliger Port (altes Verhalten).
-    local_port: int = 21105
+    # Lokaler UDP-Quellport. 0 = vom OS gewaehlter, freier Port (empfohlen).
+    # Ein fester Port kann bei schnellem Neustart zu BrokenPipe-Fehlern fuehren
+    # (ICMP "port unreachable" eines Vorgaenger-Sockets bleibt haengen), daher
+    # standardmaessig 0.
+    local_port: int = 0
 
     # Keep-Alive-/Poll-Intervall. Bewusst kurz (nicht nur < 60 s Z21-Timeout):
     # Die GET_STATUS-Antwort kommt zuverlaessig an den eigenen UDP-Port, waehrend

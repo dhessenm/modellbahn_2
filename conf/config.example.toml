@@ -7,9 +7,9 @@
 host = "192.168.0.111"
 # UDP-Port der Zentrale: 21105 (bevorzugt) oder 21106.
 port = 21105
-# Lokaler UDP-Quellport (fest, damit die Z21 den Client nach Neustart
-# wiedererkennt). 0 = zufaelliger Port.
-local_port = 21105
+# Lokaler UDP-Quellport. 0 = vom OS gewaehlter freier Port (empfohlen).
+# Ein fester Port kann bei schnellem Neustart BrokenPipe-Fehler verursachen.
+local_port = 0
 
 [keepalive]
 # Intervall in Sekunden. Bewusst kurz (nicht nur < Z21-Timeout ~60 s): haeufiges
