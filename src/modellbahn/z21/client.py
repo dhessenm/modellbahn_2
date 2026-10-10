@@ -30,10 +30,12 @@ class Z21Transport(Protocol):
 
 
 class _Z21DatagramProtocol(asyncio.DatagramProtocol):
-    def __init__(self, on_raw: RawCallback) -> None:
+    def __init__(self, on_raw: RawCallback, on_any_received: Callable[[], None]) -> None:
         self._on_raw = on_raw
+        self._on_any_received = on_any_received
 
     def datagram_received(self, data: bytes, addr: object) -> None:
+        self._on_any_received()
         for header, payload in protocol.parse_datasets(data):
             self._on_raw(header, payload)
 
@@ -68,29 +70,54 @@ class Z21UdpClient:
         )
         self._transport: asyncio.DatagramTransport | None = None
         self._keepalive_task: asyncio.Task[None] | None = None
+        self._handshake_task: asyncio.Task[None] | None = None
+        self._received_any = False
+
+    def _mark_received(self) -> None:
+        self._received_any = True
 
     async def start(self) -> None:
         loop = asyncio.get_running_loop()
         transport, _ = await loop.create_datagram_endpoint(
-            lambda: _Z21DatagramProtocol(self._on_raw),
+            lambda: _Z21DatagramProtocol(self._on_raw, self._mark_received),
             remote_addr=(self._host, self._port),
         )
         self._transport = transport
-        # Broadcast-Flags setzen, damit Lok-Info/Status asynchron eintreffen.
-        self.send(protocol.build_set_broadcastflags(self._broadcast_flags))
-        # Initiale Abfragen; halten zugleich die Registrierung aktiv.
-        self.send(protocol.build_get_status())
-        self.send(protocol.build_systemstate_getdata())
+        self._received_any = False
+        self._send_init()
+        # Start-Handshake: bei UDP-Paketverlust die Init-Pakete kurzzeitig
+        # wiederholen, bis die Zentrale antwortet (statt bis zum ersten
+        # Keep-Alive nach ~20 s stumm zu bleiben).
+        self._handshake_task = asyncio.create_task(self._handshake_loop())
         self._keepalive_task = asyncio.create_task(self._keepalive_loop())
 
-    async def stop(self) -> None:
-        if self._keepalive_task is not None:
-            self._keepalive_task.cancel()
+    def _send_init(self) -> None:
+        """Broadcast-Flags setzen und initiale Abfragen senden."""
+        self.send(protocol.build_set_broadcastflags(self._broadcast_flags))
+        self.send(protocol.build_get_status())
+        self.send(protocol.build_systemstate_getdata())
+
+    async def _handshake_loop(self) -> None:
+        """Wiederholt die Init-Pakete, bis eine Antwort kommt (max. ~5 s)."""
+        for _ in range(10):
+            await asyncio.sleep(0.5)
+            if self._received_any:
+                return
             try:
-                await self._keepalive_task
-            except asyncio.CancelledError:
-                pass
-            self._keepalive_task = None
+                self._send_init()
+            except RuntimeError:
+                return
+
+    async def stop(self) -> None:
+        for task_attr in ("_handshake_task", "_keepalive_task"):
+            task: asyncio.Task[None] | None = getattr(self, task_attr)
+            if task is not None:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                setattr(self, task_attr, None)
         if self._transport is not None:
             # Sauberes Abmelden an der Zentrale.
             self.send(protocol.build_logoff())
