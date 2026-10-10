@@ -64,6 +64,13 @@ Die Bedienung erfolgt im Browser, geräteunabhängig (Desktop, Tablet).
 - **Starke Entkopplung** anstreben: klar getrennte Schichten (Hardware/Protokoll ↔ Fachlogik ↔
   Schnittstelle) mit definierten Grenzen, sodass jede Schicht einzeln austauschbar und ohne die
   anderen testbar ist.
+- **Niedrige Latenz als Qualitätsziel:** Die direkte, manuelle Steuerung (Lok fahren, Weichen
+  schalten) muss sich unmittelbar anfühlen — ohne spürbare Verzögerung zwischen Bedienung und
+  Reaktion an der Anlage. Dieses Ziel hat bei Design-Entscheidungen Vorrang auf dem
+  Steuer-Pfad. Im automatisierten Betrieb ist Latenz weniger kritisch, mit **einer wichtigen
+  Ausnahme**: der Pfad **Gleisbelegtmeldung → Stop-Befehl** (punktgenaues Anhalten) muss
+  ebenfalls möglichst verzögerungsarm sein. Belegtmeldungen sollen so schnell wie möglich
+  erkannt und verarbeitet werden.
 
 ## MVP (erste Version)
 

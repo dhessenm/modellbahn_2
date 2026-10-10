@@ -83,6 +83,18 @@ Für das Scoping hier festgehalten, in der ersten Version aber nicht umgesetzt:
   mit dem `struct`-Modul und `bytes`/`bytearray`.
 - **Echtzeit zum Browser:** Backend verarbeitet die unaufgefordert gesendeten Zentralen-Meldungen
   und reicht sie über den WebSocket/SSE-Kanal an die Web-Clients weiter.
+- **Niedrige Latenz auf dem Steuer-Pfad (Design-Leitlinie):** Die direkte Steuerung
+  (Lok fahren, Weichen schalten) sowie der Pfad **Belegtmeldung → Stop-Befehl** (punktgenaues
+  Halten) sollen minimale Verzögerung haben. Konkret:
+  - Steuerbefehle **ohne Umwege** zur Zentrale senden — keine künstlichen Puffer, Warte-
+    schlangen oder Sammel-/Debounce-Verzögerungen auf dem Befehlsweg.
+  - Eingehende Belegtmeldungen **sofort** verarbeiten (ereignisgesteuert, nicht per langsamem
+    Polling) und daraus abgeleitete Reaktionen (z. B. Stop) unmittelbar auslösen.
+  - Blockierende Arbeit vom `asyncio`-Event-Loop fernhalten, damit UDP-Senden/-Empfangen nicht
+    verzögert wird.
+  - Latenzunkritische Aufgaben (Logging, Persistenz, UI-Aggregation) dürfen den Steuer-Pfad
+    nicht ausbremsen. Im automatisierten Betrieb ist Latenz sonst unkritisch — außer bei der
+    o. g. Belegtmeldung-/Stop-Kette.
 - **Zentrale Zustandsquelle (Single Source of Truth):** Das Backend führt genau einen
   maßgeblichen Anlagenzustand (Loks, Weichen, Rückmelder, Systemstatus) in der Fachlogik. Dieser
   wird aus den Z21-Broadcasts aktualisiert und speist **sowohl** REST-Antworten **als auch**
@@ -90,17 +102,17 @@ Für das Scoping hier festgehalten, in der ersten Version aber nicht umgesetzt:
   Nebenläufige Zugriffe (UDP-Empfang, REST-Requests, Push) müssen den Zustand konsistent halten
   (geeignete Synchronisation / ein zentraler Zustandshalter).
 - **Keep-Alive gegen Z21-Timeout:** Die Z21 entfernt einen Client, der nicht mindestens
-  **einmal pro Minute** (≈ 60 s) kommuniziert. Das Backend muss daher periodisch (Intervall
-  deutlich unter 60 s, z. B. 15–30 s) eine Statusabfrage senden (`LAN_X_GET_STATUS` oder
-  `LAN_SYSTEMSTATE_GETDATA`), um die Registrierung aufrechtzuerhalten. Als Nebeneffekt dient der
-  Erfolg/Misserfolg dieser Abfragen als Grundlage für den **Verbindungsstatus zur Zentrale**.
-  Beim Beenden per `LAN_LOGOFF` sauber abmelden. Der Keep-Alive läuft als Hintergrund-Task im
-  Backend (z. B. `asyncio`-Task), unabhängig von Client-Requests.
+  **einmal pro Minute** (≈ 60 s) kommuniziert. Das Backend sendet daher periodisch (Default
+  **5 s**, deutlich unter 60 s) eine Statusabfrage (`LAN_X_GET_STATUS` /
+  `LAN_SYSTEMSTATE_GETDATA`) und erneuert die Broadcast-Flags, um die Registrierung aktiv zu
+  halten. Die (zuverlässig an den eigenen Port kommende) Status-Antwort dient zugleich als
+  Grundlage für den **Verbindungsstatus zur Zentrale**. Beim Beenden per `LAN_LOGOFF` sauber
+  abmelden. Der Keep-Alive läuft als `asyncio`-Hintergrund-Task, unabhängig von Client-Requests.
 - **Konfiguration auslagern:** Umgebungs-/anlagenabhängige Werte nicht hartkodieren, sondern aus
-  Konfigurationsdateien unter `conf/` laden. Dazu gehören insbesondere die **IP-Adresse der
-  Z21-Zentrale**, der UDP-Port (21105/21106) und das Keep-Alive-Intervall. Format offen (z. B.
-  TOML/YAML/`.env`); eine Beispielvorlage einchecken, echte Werte lokal halten, keine Geheimnisse
-  committen.
+  **`conf/config.toml`** (Format TOML) laden. Dazu gehören u. a. **Z21-IP-Adresse**, UDP-Port
+  (21105/21106), Keep-Alive-Intervall und Log-Level. Präzedenz: Umgebungsvariablen (`MB_*`) >
+  `conf/config.toml` > Defaults. Beispielvorlage `conf/config.example.toml` einchecken, echte
+  Werte lokal halten (`conf/config.toml` ist git-ignoriert), keine Geheimnisse committen.
 - **Entkopplung:** Die Schichten klar trennen und über Schnittstellen/Abstraktionen koppeln:
   - **Z21/Protokoll-Schicht:** reine Kodierung/Dekodierung und UDP-Transport, kennt keine
     Fachlogik.
