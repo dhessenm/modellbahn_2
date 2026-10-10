@@ -45,13 +45,16 @@ class TrackPower:
 class SystemState:
     """Ausschnitt aus LAN_SYSTEMSTATE_DATACHANGED (header 0x84).
 
-    Fuer den MVP interessieren Gleisspannung, Kurzschluss und Nothalt; weitere
-    Felder (Strom, Spannung, Temperatur) koennen bei Bedarf ergaenzt werden.
+    Enthaelt die fuer eine Statusanzeige relevanten Felder: Gleisspannung,
+    Kurzschluss, Nothalt sowie einige Messwerte (Temperatur, Spannungen).
     """
 
     track_power_on: bool
     short_circuit: bool
     emergency_stop: bool
+    temperature_c: int = 0
+    supply_voltage_mv: int = 0
+    track_voltage_mv: int = 0
 
 
 def _decode_address(adr_msb: int, adr_lsb: int) -> int:
@@ -94,12 +97,19 @@ def parse_message(header: int, data: bytes) -> LocoInfo | TrackPower | SystemSta
     if header == HEADER_SYSTEMSTATE and len(data) >= 13:
         # SystemState-Layout (16 Byte, little endian): CentralState an Offset 12.
         # 0..1 MainCurrent, 2..3 ProgCurrent, 4..5 FilteredMainCurrent,
-        # 6..7 Temperature, 8..9 SupplyVoltage, 10..11 VCCVoltage, 12 CentralState.
+        # 6..7 Temperature (INT16, °C), 8..9 SupplyVoltage (UINT16, mV),
+        # 10..11 VCCVoltage/Gleisspannung (UINT16, mV), 12 CentralState.
+        temperature = int.from_bytes(data[6:8], "little", signed=True)
+        supply_mv = int.from_bytes(data[8:10], "little", signed=False)
+        track_mv = int.from_bytes(data[10:12], "little", signed=False)
         central_state = data[12]
         return SystemState(
             track_power_on=not (central_state & CS_TRACK_VOLTAGE_OFF),
             short_circuit=bool(central_state & CS_SHORT_CIRCUIT),
             emergency_stop=bool(central_state & CS_EMERGENCY_STOP),
+            temperature_c=temperature,
+            supply_voltage_mv=supply_mv,
+            track_voltage_mv=track_mv,
         )
 
     if header != HEADER_LAN_X or not data:

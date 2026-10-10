@@ -20,6 +20,17 @@ class LocoState:
 
 
 @dataclass
+class SystemInfo:
+    """Zentralenstatus (aus LAN_SYSTEMSTATE_DATACHANGED abgeleitet)."""
+
+    short_circuit: bool = False
+    emergency_stop: bool = False
+    temperature_c: int = 0
+    supply_voltage_mv: int = 0
+    track_voltage_mv: int = 0
+
+
+@dataclass
 class LayoutState:
     """Gesamtzustand der Anlage fuer den MVP.
 
@@ -28,6 +39,7 @@ class LayoutState:
 
     connected: bool = False
     track_power_on: bool = False
+    system: SystemInfo = field(default_factory=SystemInfo)
     locos: dict[int, LocoState] = field(default_factory=dict)
 
     def loco(self, address: int) -> LocoState:

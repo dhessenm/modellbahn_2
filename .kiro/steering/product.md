@@ -107,6 +107,19 @@ Statusabfrage (z. B. `LAN_X_GET_STATUS` oder `LAN_SYSTEMSTATE_GETDATA`) senden, 
 Verbindung bestehen bleibt. Bleiben Antworten aus, gilt die Verbindung als getrennt (steuert
 die Verbindungsanzeige). Beim Beenden sollte sich der Client per `LAN_LOGOFF` sauber abmelden.
 
+### UI-Aufbau und Erweiterbarkeit
+
+Die Web-UI ist als **App mit mehreren Arbeitsbereichen** aufgebaut, nicht als Einzelseite —
+damit künftige Funktionen ohne Umbau Platz finden:
+
+- **Dashboard (Startseite):** zeigt den **Zentralenstatus** (Gleisspannung, Kurzschluss,
+  Nothalt, Temperatur, Versorgungs-/Gleisspannung), die Verbindung und den Track-Power-Schalter.
+- **Lokführerstand:** die manuelle Loksteuerung (siehe oben).
+- **Gleisplan-Anzeige** und **Gleisplan-Modellierung:** als Bereiche bereits in der Navigation
+  vorgesehen, Inhalt folgt später.
+- Navigation zwischen den Bereichen über ein Menü in der App-Shell; die Verbindungsanzeige ist
+  global sichtbar.
+
 Bewusst **nicht** im MVP (für spätere Versionen):
 
 - Weichen/Stellwerk, Blöcke, automatische Zugfahrten.

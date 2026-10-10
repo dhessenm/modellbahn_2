@@ -41,8 +41,14 @@ modellbahn_2/
 │       └── main.py         # Einstiegspunkt (startet den FastAPI-Server)
 ├── frontend/               # Web-UI: Vue 3 + TypeScript, Build mit Vite
 │   ├── package.json        # Frontend-Abhängigkeiten/Skripte
-│   ├── src/                # Vue-Quellcode (Komponenten, Views, Stores, API-Client)
-│   └── public/ | assets/   # statische Assets der Web-UI (Icons, Grafiken, CSS)
+│   ├── e2e/                # Playwright-E2E-Tests (API gemockt)
+│   └── src/
+│       ├── App.vue         # App-Shell: Kopfzeile, Navigation, globale Verbindungsanzeige
+│       ├── router/         # Vue-Router: eine Route je Arbeitsbereich
+│       ├── views/          # Seiten je Bereich (Dashboard, Lokführerstand, Gleisplan, …)
+│       ├── components/     # wiederverwendbare UI-Bausteine
+│       ├── stores/         # zentraler Frontend-Zustand (einmal in der Shell gestartet)
+│       └── api/            # REST-Client + SSE, Typen
 ├── tests/                  # Tests (Spiegelung der src-Struktur)
 └── .kiro/steering/         # Steering-Dokumente
 ```
@@ -66,6 +72,24 @@ modellbahn_2/
 - Der Browser spricht ausschließlich mit der `api`-Schicht; die UDP-/Z21-Kommunikation bleibt
   vollständig im Backend.
 - Fachcode nach Domäne gruppieren (Block, Rückmelder, Weiche, Zugfahrt), nicht nur nach Dateityp.
+
+## UI-Architektur (Frontend)
+
+Die Web-UI ist auf **Erweiterbarkeit** ausgelegt — eine App-Shell mit Navigation und je einem
+Arbeitsbereich pro Route, sodass neue Bereiche ohne Umbau hinzukommen.
+
+- **App-Shell (`App.vue`):** Kopfzeile mit Navigation und **globaler** Verbindungsanzeige;
+  startet den zentralen Store **einmal** und teilt ihn mit allen Seiten.
+- **Routen/Views (ein Bereich = eine Route):**
+  - `/` **Dashboard** (Startseite): Zentralenstatus (SystemState), Verbindung, Track-Power —
+    die anlagenweiten Infos.
+  - `/throttle` **Lokführerstand** (Fahren/Funktionen).
+  - `/track-plan` **Gleisplan-Anzeige** und `/track-edit` **Gleisplan-Modellierung** — aktuell
+    Platzhalter (`ComingSoon`), als Zielstruktur bereits in der Navigation sichtbar.
+- **Neuen Bereich hinzufügen:** View unter `views/` anlegen, Route im `router/` registrieren,
+  Navigationslink in der Shell ergänzen. Gemeinsamer Zustand kommt aus dem Store.
+- **Store** (`stores/`) spiegelt den maßgeblichen Backend-Zustand und lädt ihn bei SSE-Signalen
+  frisch nach — die Single Source of Truth bleibt das Backend.
 
 ## Konfiguration und Assets
 

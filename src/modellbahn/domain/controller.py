@@ -58,6 +58,11 @@ class LocoController:
             self.state.track_power_on = message.on
         elif isinstance(message, messages.SystemState):
             self.state.track_power_on = message.track_power_on
+            self.state.system.short_circuit = message.short_circuit
+            self.state.system.emergency_stop = message.emergency_stop
+            self.state.system.temperature_c = message.temperature_c
+            self.state.system.supply_voltage_mv = message.supply_voltage_mv
+            self.state.system.track_voltage_mv = message.track_voltage_mv
         self._notify()
 
     # --- ausgehende Kommandos ------------------------------------------

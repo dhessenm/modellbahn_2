@@ -41,6 +41,20 @@ def test_parse_systemstate_track_power_on() -> None:
     assert msg.emergency_stop is False
 
 
+def test_parse_systemstate_measurements() -> None:
+    # Messwerte: Temperatur (Offset 6, INT16), SupplyVoltage (8, UINT16),
+    # VCC/Gleisspannung (10, UINT16) -- jeweils little endian.
+    data = bytearray(16)
+    data[6:8] = (31).to_bytes(2, "little", signed=True)      # 31 °C
+    data[8:10] = (15000).to_bytes(2, "little")                # 15000 mV
+    data[10:12] = (18000).to_bytes(2, "little")               # 18000 mV
+    msg = parse_message(0x84, bytes(data))
+    assert isinstance(msg, SystemState)
+    assert msg.temperature_c == 31
+    assert msg.supply_voltage_mv == 15000
+    assert msg.track_voltage_mv == 18000
+
+
 def test_parse_systemstate_track_power_off_and_short_circuit() -> None:
     data = bytearray(16)
     data[12] = 0x02 | 0x04  # csTrackVoltageOff | csShortCircuit

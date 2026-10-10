@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
-import ConnectionStatus from '@/components/ConnectionStatus.vue'
+import { ref } from 'vue'
 import TrackPower from '@/components/TrackPower.vue'
 import LocoThrottle from '@/components/LocoThrottle.vue'
 import FunctionButtons from '@/components/FunctionButtons.vue'
@@ -11,13 +10,6 @@ const store = useLayoutStore()
 
 const addressInput = ref<number>(3)
 
-onMounted(() => {
-  void store.start()
-})
-onUnmounted(() => {
-  store.stop()
-})
-
 function selectLoco(): void {
   void store.selectLoco(addressInput.value)
 }
@@ -25,14 +17,7 @@ function selectLoco(): void {
 
 <template>
   <main class="cab">
-    <header class="topbar">
-      <h1>Lokführerstand</h1>
-      <ConnectionStatus
-        :connected="store.status.value?.connected ?? false"
-        :host="store.status.value?.z21_host ?? '—'"
-        :port="store.status.value?.z21_port ?? 0"
-      />
-    </header>
+    <h1>Lokführerstand</h1>
 
     <section class="panel">
       <TrackPower
@@ -70,8 +55,6 @@ function selectLoco(): void {
         <LocoInfoFrame :loco="store.loco.value" />
       </section>
     </template>
-
-    <p v-if="store.error.value" class="error">{{ store.error.value }}</p>
   </main>
 </template>
 
@@ -83,13 +66,6 @@ function selectLoco(): void {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.75rem;
 }
 h1 {
   margin: 0;
@@ -112,8 +88,5 @@ h1 {
 .address button {
   padding: 0.35rem 0.9rem;
   cursor: pointer;
-}
-.error {
-  color: #ffb4b4;
 }
 </style>

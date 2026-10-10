@@ -100,9 +100,15 @@ def _register_routes(
 
     @app.get("/api/system/status", response_model=SystemStatusResponse)
     def system_status() -> SystemStatusResponse:
+        sys_info = controller.state.system
         return SystemStatusResponse(
             connected=controller.state.connected,
             track_power_on=controller.state.track_power_on,
+            short_circuit=sys_info.short_circuit,
+            emergency_stop=sys_info.emergency_stop,
+            temperature_c=sys_info.temperature_c,
+            supply_voltage_mv=sys_info.supply_voltage_mv,
+            track_voltage_mv=sys_info.track_voltage_mv,
             z21_host=settings.z21_host,
             z21_port=settings.z21_port,
         )

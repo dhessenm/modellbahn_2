@@ -29,5 +29,10 @@ class LocoStateResponse(BaseModel):
 class SystemStatusResponse(BaseModel):
     connected: bool
     track_power_on: bool
+    short_circuit: bool
+    emergency_stop: bool
+    temperature_c: int
+    supply_voltage_mv: int
+    track_voltage_mv: int
     z21_host: str
     z21_port: int

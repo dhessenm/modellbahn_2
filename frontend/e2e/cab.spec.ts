@@ -8,7 +8,17 @@ async function mockBackend(page: Page): Promise<void> {
 
   await page.route('**/api/system/status', (route) =>
     route.fulfill({
-      json: { connected: true, track_power_on: trackPower, z21_host: '192.168.0.111', z21_port: 21105 },
+      json: {
+        connected: true,
+        track_power_on: trackPower,
+        short_circuit: false,
+        emergency_stop: false,
+        temperature_c: 31,
+        supply_voltage_mv: 15000,
+        track_voltage_mv: 18000,
+        z21_host: '192.168.0.111',
+        z21_port: 21105,
+      },
     }),
   )
 
@@ -49,12 +59,23 @@ async function mockBackend(page: Page): Promise<void> {
   )
 }
 
-test('Lokfuehrerstand: Verbindung, Lok waehlen, fahren, Funktion schalten', async ({ page }) => {
+test('Dashboard zeigt Zentralenstatus', async ({ page }) => {
   await mockBackend(page)
   await page.goto('/')
 
-  // Verbindungsanzeige
-  await expect(page.getByText('Verbunden')).toBeVisible()
+  // Dashboard mit Zentralenstatus
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Zentralenstatus' })).toBeVisible()
+  await expect(page.getByText('31 °C')).toBeVisible()
+})
+
+test('Lokfuehrerstand: Lok waehlen, fahren, Funktion schalten', async ({ page }) => {
+  await mockBackend(page)
+  await page.goto('/')
+
+  // Über die Navigation zum Lokführerstand wechseln (exakter Link-Name)
+  await page.getByRole('link', { name: 'Lokführerstand', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Lokführerstand' })).toBeVisible()
 
   // Lok 3 waehlen
   await page.getByLabel('Lok-Adresse (DCC)').fill('3')
