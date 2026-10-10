@@ -13,5 +13,24 @@ Thumbs.db
 # Umgebungs-/Geheimnisdateien
 .env
 .env.*
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+
+# Lokale Konfiguration (Beispiel bleibt eingecheckt)
+conf/config.toml
+
 # Externe Referenzdokumentation (nicht Teil des Repos)
 external_docs/

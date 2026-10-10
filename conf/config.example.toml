@@ -1,0 +1,13 @@
+# Beispiel-Konfiguration fuer das Modellbahn-Backend.
+# Kopieren nach conf/config.toml bzw. als .env setzen und an die Anlage anpassen.
+# Umgebungsvariablen (Prefix MB_) ueberschreiben diese Werte, z. B. MB_Z21_HOST.
+
+[z21]
+# IP-Adresse der Z21-Zentrale im lokalen Netz.
+host = "192.168.0.111"
+# UDP-Port: 21105 (bevorzugt) oder 21106.
+port = 21105
+
+[keepalive]
+# Intervall in Sekunden, deutlich unter dem Z21-Timeout von ~60 s.
+interval_s = 20.0
