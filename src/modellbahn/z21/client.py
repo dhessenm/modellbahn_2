@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import socket
 from collections.abc import Callable
 from typing import Protocol
 
@@ -87,38 +86,20 @@ class Z21UdpClient:
         self._keepalive_task: asyncio.Task[None] | None = None
         self._handshake_task: asyncio.Task[None] | None = None
         self._received_any = False
+        self._warned_no_route = False
 
     def _mark_received(self) -> None:
         self._received_any = True
-
-    def _resolve_local_host(self) -> str:
-        """Ermittelt die lokale Adresse, ueber die die Z21 erreichbar ist.
-
-        Wichtig bei aktivem VPN/mehreren Interfaces: An diese Adresse zu binden
-        (statt 0.0.0.0) stellt sicher, dass das OS beim Senden das richtige
-        Interface (das zur Z21) waehlt. Der 'connect'-Trick auf ein temporaeres
-        UDP-Socket sendet nichts, waehlt aber die Quelladresse gemaess Routing.
-        """
-        if self._local_host:
-            return self._local_host
-        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            probe.connect((self._host, self._port))
-            addr: str = probe.getsockname()[0]
-            return addr
-        except OSError:
-            return "0.0.0.0"
-        finally:
-            probe.close()
+        # Nach erfolgreichem Empfang den Hinweis wieder zulassen.
+        self._warned_no_route = False
 
     async def start(self) -> None:
         loop = asyncio.get_running_loop()
-        # UNVERBUNDENES Socket (kein remote_addr), aber explizit an das lokale
-        # Interface gebunden, das die Z21 erreicht. Beides zusammen vermeidet
-        # BrokenPipe (verbundenes Socket) UND "No route to host" (falsches
-        # Interface bei aktivem VPN).
-        bind_host = self._resolve_local_host()
-        local_addr = (bind_host, self._local_port)
+        # Unverbundenes Socket (kein remote_addr); Ziel wird pro sendto angegeben.
+        # local_host optionaler Override fuer das Bind-Interface, sonst 0.0.0.0
+        # (OS waehlt gemaess Routing). Standardmaessig genuegt das; die Wahl des
+        # Interfaces war nie die Ursache von Verbindungsproblemen (siehe unten).
+        local_addr = (self._local_host or "0.0.0.0", self._local_port)
         transport, _ = await loop.create_datagram_endpoint(
             lambda: _Z21DatagramProtocol(self._on_raw, self._mark_received),
             local_addr=local_addr,
@@ -127,11 +108,10 @@ class Z21UdpClient:
         self._received_any = False
         sockname = transport.get_extra_info("sockname")
         logger.info(
-            "Z21-UDP-Socket geoeffnet: lokal=%s ziel=%s:%s (local_port=%s, unverbunden)",
+            "Z21-UDP-Socket geoeffnet: lokal=%s ziel=%s:%s",
             sockname,
             self._host,
             self._port,
-            self._local_port,
         )
         self._send_init()
         # Start-Handshake: bei UDP-Paketverlust die Init-Pakete kurzzeitig
@@ -182,6 +162,27 @@ class Z21UdpClient:
         try:
             self._transport.sendto(dataset, (self._host, self._port))
         except OSError as exc:
+            self._warn_send_error(exc)
+
+    def _warn_send_error(self, exc: OSError) -> None:
+        """Loggt Sendefehler; bei 'No route to host' mit Klartext-Hinweis.
+
+        'No route to host' (errno 65) beim Senden ins lokale Netz ist unter
+        macOS fast immer die fehlende/haengende Berechtigung 'Lokales Netzwerk'
+        der ausfuehrenden App (z. B. iTerm/Terminal) -- NICHT ein Code-/Netz-
+        problem (Ping und ARP funktionieren dann trotzdem).
+        """
+        if exc.errno == 65 and not self._warned_no_route:
+            self._warned_no_route = True
+            logger.error(
+                "SEND fehlgeschlagen: %r. Unter macOS fehlt der ausfuehrenden App "
+                "vermutlich die Berechtigung 'Lokales Netzwerk'. Loesung: "
+                "Systemeinstellungen > Datenschutz & Sicherheit > Lokales Netzwerk "
+                "-> die Terminal-/Host-App aus- und wieder einschalten, dann die App "
+                "komplett neu starten.",
+                exc,
+            )
+        else:
             logger.warning("SEND fehlgeschlagen: %r", exc)
 
     async def _keepalive_loop(self) -> None:
