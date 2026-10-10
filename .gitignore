@@ -1,0 +1,17 @@
+# Betriebssystem
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+
+# Umgebungs-/Geheimnisdateien
+.env
+.env.*
+# Externe Referenzdokumentation (nicht Teil des Repos)
+external_docs/
