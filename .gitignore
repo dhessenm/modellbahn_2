@@ -29,6 +29,14 @@ dist/
 node_modules/
 frontend/dist/
 
+# Dev-Logs (scripts/dev.sh)
+.dev-logs/
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/.playwright/
+
 # Lokale Konfiguration (Beispiel bleibt eingecheckt)
 conf/config.toml
 

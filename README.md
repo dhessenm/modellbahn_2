@@ -47,11 +47,29 @@ npm install
 # Dev-Server (eigenes Terminal)
 npm run dev
 
-# Tests, Typprüfung + Build, Linting
+# Unit-/Component-Tests, Typprüfung + Build, Linting
 npm run test:unit
 npm run build
 npm run lint
+
+# End-to-End-Tests (Playwright; startet Vite selbst, API wird gemockt)
+npm run test:e2e
 ```
+
+## Dev-Umgebung starten/stoppen
+
+Komfort-Skript, das Backend (Port 8000, ohne `--reload`) und Frontend (Port 5173)
+startet und beim Stoppen zuverlässig aufräumt (inkl. verwaister uvicorn-Prozesse,
+die sonst den UDP-Socket zur Z21 blockieren):
+
+```sh
+scripts/dev.sh start     # beide starten
+scripts/dev.sh status    # anzeigen, was läuft
+scripts/dev.sh stop      # beide sauber beenden
+scripts/dev.sh restart   # stop + start
+```
+
+Logs landen unter `.dev-logs/`.
 
 ## Konfiguration
 

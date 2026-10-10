@@ -56,9 +56,44 @@ export const api = {
   },
 
   // SSE: ruft onChange bei jeder Zustandsaenderung im Backend auf.
-  subscribeEvents(onChange: () => void): () => void {
-    const source = new EventSource('/api/events')
-    source.onmessage = () => onChange()
-    return () => source.close()
+  // Robust gegen Verbindungsabbrueche: reconnectet mit exponentiellem Backoff
+  // und meldet jede (Wieder-)Verbindung ueber onReconnect, damit der Aufrufer
+  // den Zustand frisch nachladen kann.
+  subscribeEvents(
+    onChange: () => void,
+    onReconnect?: () => void,
+  ): () => void {
+    let source: EventSource | null = null
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+    let backoffMs = 1000
+    const maxBackoffMs = 15000
+    let closed = false
+
+    const connect = (): void => {
+      if (closed) return
+      source = new EventSource('/api/events')
+
+      source.onopen = () => {
+        backoffMs = 1000 // nach erfolgreicher Verbindung zuruecksetzen
+        onReconnect?.()
+      }
+      source.onmessage = () => onChange()
+      source.onerror = () => {
+        // EventSource schliessen und selbst mit Backoff neu verbinden.
+        source?.close()
+        source = null
+        if (closed) return
+        retryTimer = setTimeout(connect, backoffMs)
+        backoffMs = Math.min(backoffMs * 2, maxBackoffMs)
+      }
+    }
+
+    connect()
+
+    return () => {
+      closed = true
+      if (retryTimer !== null) clearTimeout(retryTimer)
+      source?.close()
+    }
   },
 }

@@ -38,10 +38,16 @@ async function refreshAll(): Promise<void> {
 
 export function useLayoutStore() {
   async function start(): Promise<void> {
-    await refreshStatus()
-    unsubscribe = api.subscribeEvents(() => {
-      void refreshAll()
-    })
+    await refreshAll()
+    unsubscribe = api.subscribeEvents(
+      () => {
+        void refreshAll()
+      },
+      () => {
+        // Bei (Wieder-)Verbindung den Zustand frisch holen.
+        void refreshAll()
+      },
+    )
   }
 
   function stop(): void {
