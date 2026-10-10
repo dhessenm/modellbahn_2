@@ -53,6 +53,21 @@ async function mockBackend(page: Page): Promise<void> {
 
   await page.route('**/api/locos/3', (route) => route.fulfill({ json: loco }))
 
+  // Weiche 7: Zustand haelt sich im Mock.
+  const turnout = { address: 7, position: null as number | null }
+  await page.route('**/api/turnouts/7/subscribe', (route) =>
+    route.fulfill({ status: 204, body: '' }),
+  )
+  await page.route('**/api/turnouts/7', async (route) => {
+    if (route.request().method() === 'PUT') {
+      const body = route.request().postDataJSON() as { position: number }
+      turnout.position = body.position
+      await route.fulfill({ status: 204, body: '' })
+    } else {
+      await route.fulfill({ json: turnout })
+    }
+  })
+
   // SSE-Endpunkt: offener Stream ohne Events (verhindert Netzwerk-Fehler).
   await page.route('**/api/events', (route) =>
     route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: '' }),
@@ -97,4 +112,22 @@ test('Lokfuehrerstand: Lok waehlen, fahren, Funktion schalten', async ({ page })
   // Funktion F2 einschalten
   await page.getByRole('button', { name: 'F2', exact: true }).click()
   await expect(page.locator('dt', { hasText: /^F2$/ })).toBeVisible()
+})
+
+test('Weichen: Adresse waehlen und Position schalten', async ({ page }) => {
+  await mockBackend(page)
+  await page.goto('/')
+
+  // Über die Navigation zu den Weichen
+  await page.getByRole('link', { name: 'Weichen', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Weichen' })).toBeVisible()
+
+  // Weiche 7 waehlen
+  await page.getByLabel('Weichen-Adresse (DCC, ab 0)').fill('7')
+  await page.getByRole('button', { name: 'Übernehmen' }).click()
+  await expect(page.getByText('Weiche 7')).toBeVisible()
+
+  // Position 1 schalten -> Anzeige aktualisiert
+  await page.getByRole('button', { name: 'Position 1' }).click()
+  await expect(page.locator('.pos strong', { hasText: /^1$/ })).toBeVisible()
 })

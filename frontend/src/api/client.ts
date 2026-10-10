@@ -1,7 +1,7 @@
 // REST-Client und SSE-Abonnement fuer das Backend.
 // Die Web-UI spricht ausschliesslich ueber diese Schnittstelle mit dem Backend.
 
-import type { LocoState, SystemStatus } from './types'
+import type { LocoState, SystemStatus, TurnoutState } from './types'
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
   const resp = await fetch(path, init)
@@ -51,6 +51,21 @@ export const api = {
   async setFunction(address: number, func: number, on: boolean): Promise<void> {
     await request(`/api/locos/${address}/function`, {
       ...jsonBody({ function: func, on }),
+      method: 'PUT',
+    })
+  },
+
+  getTurnout(address: number): Promise<TurnoutState> {
+    return requestJson<TurnoutState>(`/api/turnouts/${address}`)
+  },
+
+  async subscribeTurnout(address: number): Promise<void> {
+    await request(`/api/turnouts/${address}/subscribe`, { method: 'POST' })
+  },
+
+  async setTurnout(address: number, position: number): Promise<void> {
+    await request(`/api/turnouts/${address}`, {
+      ...jsonBody({ position }),
       method: 'PUT',
     })
   },

@@ -15,6 +15,11 @@ const router = createRouter({
       component: () => import('../views/CabView.vue'),
     },
     {
+      path: '/turnouts',
+      name: 'turnouts',
+      component: () => import('../views/TurnoutView.vue'),
+    },
+    {
       path: '/track-plan',
       name: 'track-plan',
       component: () => import('../views/TrackPlanView.vue'),

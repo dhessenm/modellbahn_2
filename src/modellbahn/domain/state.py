@@ -31,19 +31,34 @@ class SystemInfo:
 
 
 @dataclass
+class TurnoutState:
+    """Zustand einer Weiche (DCC-Zubehoer)."""
+
+    address: int
+    position: int | None = None  # 0, 1 oder None (noch nicht geschaltet)
+
+
+@dataclass
 class LayoutState:
     """Gesamtzustand der Anlage fuer den MVP.
 
-    Erweiterbar um Weichen, Rueckmelder und Bloecke in spaeteren Versionen.
+    Erweiterbar um Rueckmelder und Bloecke in spaeteren Versionen.
     """
 
     connected: bool = False
     track_power_on: bool = False
     system: SystemInfo = field(default_factory=SystemInfo)
     locos: dict[int, LocoState] = field(default_factory=dict)
+    turnouts: dict[int, TurnoutState] = field(default_factory=dict)
 
     def loco(self, address: int) -> LocoState:
         """Liefert den Lok-Zustand, legt ihn bei Bedarf an."""
         if address not in self.locos:
             self.locos[address] = LocoState(address=address)
         return self.locos[address]
+
+    def turnout(self, address: int) -> TurnoutState:
+        """Liefert den Weichen-Zustand, legt ihn bei Bedarf an."""
+        if address not in self.turnouts:
+            self.turnouts[address] = TurnoutState(address=address)
+        return self.turnouts[address]

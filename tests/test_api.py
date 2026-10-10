@@ -80,6 +80,28 @@ def test_subscribe_loco_requests_info_from_central() -> None:
     assert tx.sent[-1] == protocol.build_get_loco_info(3)
 
 
+def test_set_turnout_sends_activate_and_updates_state() -> None:
+    client, tx = _client()
+    resp = client.put("/api/turnouts/5", json={"position": 1})
+    assert resp.status_code == 204
+    # Mindestens das Aktivieren muss gesendet worden sein.
+    assert protocol.build_set_turnout(5, 1, activate=True) in tx.sent
+    state = client.get("/api/turnouts/5").json()
+    assert state["position"] == 1
+
+
+def test_get_turnout_unknown_returns_null_position() -> None:
+    client, _ = _client()
+    body = client.get("/api/turnouts/99").json()
+    assert body["address"] == 99
+    assert body["position"] is None
+
+
+def test_turnout_position_validation() -> None:
+    client, _ = _client()
+    assert client.put("/api/turnouts/5", json={"position": 2}).status_code == 422
+
+
 def test_drive_validation_rejects_out_of_range_speed() -> None:
     client, _ = _client()
     assert client.put("/api/locos/3/drive", json={"speed": 200}).status_code == 422

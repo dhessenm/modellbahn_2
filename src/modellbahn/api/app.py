@@ -26,6 +26,8 @@ from modellbahn.api.schemas import (
     LocoStateResponse,
     SystemStatusResponse,
     TrackPowerRequest,
+    TurnoutRequest,
+    TurnoutStateResponse,
 )
 from modellbahn.config import Settings, get_settings
 from modellbahn.domain.controller import LocoController
@@ -148,6 +150,36 @@ def _register_routes(
     @app.put("/api/locos/{address}/function", status_code=204)
     def set_function(address: int, req: FunctionRequest) -> Response:
         controller.set_function(address, req.function, req.on)
+        return Response(status_code=204)
+
+    @app.get("/api/turnouts/{address}", response_model=TurnoutStateResponse)
+    def get_turnout(address: int) -> TurnoutStateResponse:
+        turnout = controller.state.turnouts.get(address)
+        position = turnout.position if turnout is not None else None
+        return TurnoutStateResponse(address=address, position=position)
+
+    @app.post("/api/turnouts/{address}/subscribe", status_code=204)
+    def subscribe_turnout(address: int) -> Response:
+        """Fordert den aktuellen Weichen-Zustand bei der Zentrale an (lesend)."""
+        controller.request_turnout_info(address)
+        return Response(status_code=204)
+
+    @app.put("/api/turnouts/{address}", status_code=204)
+    async def set_turnout(address: int, req: TurnoutRequest) -> Response:
+        """Schaltet eine Weiche: Ausgang aktivieren, kurz danach deaktivieren.
+
+        Das Deaktivieren laeuft als Hintergrund-Task, damit der Request sofort
+        antwortet. Zusammen ergeben beide Phasen den vollstaendigen
+        DCC-Zubehoer-Schaltbefehl; die Antriebsansteuerung uebernimmt der
+        Weichendecoder (z. B. ESU SwitchPilot).
+        """
+        controller.set_turnout(address, req.position)
+
+        async def deactivate_later() -> None:
+            await asyncio.sleep(settings.turnout_pulse_s)
+            controller.deactivate_turnout(address, req.position)
+
+        asyncio.create_task(deactivate_later())
         return Response(status_code=204)
 
     @app.get("/api/events")

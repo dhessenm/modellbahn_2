@@ -15,6 +15,7 @@ HEADER_SYSTEMSTATE = 0x84  # LAN_SYSTEMSTATE_DATACHANGED
 
 # X-Header empfangener X-Bus-Meldungen
 XHEADER_LOCO_INFO = 0xEF
+XHEADER_TURNOUT_INFO = 0x43  # LAN_X_TURNOUT_INFO
 XHEADER_STATUS = 0x62  # LAN_X_STATUS_CHANGED, DB0 0x22
 XHEADER_BC = 0x61  # Track-Power-Broadcasts: DB0 0x00=OFF, 0x01=ON
 
@@ -57,8 +58,24 @@ class SystemState:
     track_voltage_mv: int = 0
 
 
+@dataclass
+class TurnoutInfo:
+    """Dekodierte LAN_X_TURNOUT_INFO-Meldung.
+
+    position: 0 oder 1, oder None wenn die Weiche noch nicht geschaltet wurde
+    (ZZ=00 = Zustand unbekannt).
+    """
+
+    address: int
+    position: int | None
+
+
 def _decode_address(adr_msb: int, adr_lsb: int) -> int:
     return ((adr_msb & 0x3F) << 8) + adr_lsb
+
+
+def _decode_turnout_address(fadr_msb: int, fadr_lsb: int) -> int:
+    return (fadr_msb << 8) + fadr_lsb
 
 
 def _decode_speed_128(db3: int) -> tuple[int, bool]:
@@ -92,7 +109,9 @@ def _decode_functions(data: bytes) -> dict[int, bool]:
     return functions
 
 
-def parse_message(header: int, data: bytes) -> LocoInfo | TrackPower | SystemState | None:
+def parse_message(
+    header: int, data: bytes
+) -> LocoInfo | TurnoutInfo | TrackPower | SystemState | None:
     """Wertet einen empfangenen Datensatz aus; None bei irrelevanten Meldungen."""
     if header == HEADER_SYSTEMSTATE and len(data) >= 13:
         # SystemState-Layout (16 Byte, little endian): CentralState an Offset 12.
@@ -121,6 +140,13 @@ def parse_message(header: int, data: bytes) -> LocoInfo | TrackPower | SystemSta
         speed, forward = _decode_speed_128(data[4])
         functions = _decode_functions(data)
         return LocoInfo(address=address, speed=speed, forward=forward, functions=functions)
+
+    if x_header == XHEADER_TURNOUT_INFO and len(data) >= 4:
+        # DB1/DB2 = Adresse, DB3 = 000000ZZ: 00=unbekannt, 01=P0, 10=P1
+        address = _decode_turnout_address(data[1], data[2])
+        zz = data[3] & 0x03
+        position = {0b01: 0, 0b10: 1}.get(zz)  # None bei 00 (unbekannt) / 11 (ungueltig)
+        return TurnoutInfo(address=address, position=position)
 
     if x_header == XHEADER_BC and len(data) >= 2:
         # DB0: 0x00 = Track Power OFF, 0x01 = Track Power ON

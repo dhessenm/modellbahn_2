@@ -139,6 +139,43 @@ def build_loco_function(address: int, function: int, on: bool) -> bytes:
     return build_xbus(0xE4, bytes([0xF8, msb, lsb, db3]))
 
 
+# --- Weichen / Zubehör (DCC) -----------------------------------------------
+
+def encode_turnout_address(address: int) -> tuple[int, int]:
+    """Kodiert eine Weichen-/Funktionsdecoder-Adresse in (FAdr_MSB, FAdr_LSB).
+
+    Die Z21 adressiert Weichen ab 0; in Apps/multiMaus werden sie ab 1 gezaehlt.
+    Diese Funktion erwartet die LAN-Adresse (ab 0), wie sie im Protokoll steht.
+    """
+    if not 0 <= address <= 0x7FF:
+        raise ValueError(f"Weichen-Adresse ausserhalb 0..2047: {address}")
+    return (address >> 8) & 0xFF, address & 0xFF
+
+
+def build_set_turnout(address: int, position: int, activate: bool = True) -> bytes:
+    """LAN_X_SET_TURNOUT (X-Header 0x53).
+
+    DB3 = 1 0 Q 0 A 0 0 P:
+      P = Ausgang/Position (0 oder 1)
+      A = Ausgang aktivieren (1) / deaktivieren (0)
+      Q = 0 (sofort ausfuehren)
+    Ein vollstaendiger Schaltvorgang besteht aus activate=True (Ausgang ein) und
+    kurz danach activate=False (Ausgang aus). Die eigentliche Antriebsansteuerung
+    uebernimmt der Weichendecoder (z. B. ESU SwitchPilot Servo).
+    """
+    if position not in (0, 1):
+        raise ValueError(f"Position muss 0 oder 1 sein: {position}")
+    msb, lsb = encode_turnout_address(address)
+    db3 = 0x80 | (0x08 if activate else 0x00) | (position & 0x01)
+    return build_xbus(0x53, bytes([msb, lsb, db3]))
+
+
+def build_get_turnout_info(address: int) -> bytes:
+    """LAN_X_GET_TURNOUT_INFO (X-Header 0x43, dann Adresse). Rein lesend."""
+    msb, lsb = encode_turnout_address(address)
+    return build_xbus(0x43, bytes([msb, lsb]))
+
+
 # --- Dekodierung von Empfangsdaten -----------------------------------------
 
 def parse_datasets(buffer: bytes) -> list[tuple[int, bytes]]:

@@ -5,8 +5,10 @@ from __future__ import annotations
 from modellbahn.z21.protocol import (
     build_dataset,
     build_get_status,
+    build_get_turnout_info,
     build_loco_drive,
     build_loco_function,
+    build_set_turnout,
     build_track_power_off,
     build_track_power_on,
     build_xbus,
@@ -61,6 +63,22 @@ def test_build_loco_function_toggle_bits() -> None:
     # F1 ausschalten: DB3 = 0x01
     ds_off = build_loco_function(3, 1, on=False)
     assert ds_off[8] == 0x01
+
+
+def test_build_set_turnout_bits() -> None:
+    # Adresse 5, Position 1, aktivieren: DB3 = 1000A00P = 0x80|0x08|0x01 = 0x89
+    ds = build_set_turnout(5, position=1, activate=True)
+    assert ds[4] == 0x53  # X-Header
+    assert ds[5] == 0x00 and ds[6] == 0x05  # Adresse 5
+    assert ds[7] == 0x89
+    # Deaktivieren Position 0: DB3 = 0x80
+    ds_off = build_set_turnout(5, position=0, activate=False)
+    assert ds_off[7] == 0x80
+
+
+def test_build_get_turnout_info() -> None:
+    ds = build_get_turnout_info(5)
+    assert ds[4] == 0x43 and ds[5] == 0x00 and ds[6] == 0x05
 
 
 def test_parse_datasets_splits_combined_payload() -> None:

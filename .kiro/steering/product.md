@@ -115,14 +115,18 @@ damit künftige Funktionen ohne Umbau Platz finden:
 - **Dashboard (Startseite):** zeigt den **Zentralenstatus** (Gleisspannung, Kurzschluss,
   Nothalt, Temperatur, Versorgungs-/Gleisspannung), die Verbindung und den Track-Power-Schalter.
 - **Lokführerstand:** die manuelle Loksteuerung (siehe oben).
+- **Weichen:** manuelles Schalten einzelner Weichen über ihre DCC-Zubehöradresse (Position 0/1)
+  mit Zustandsanzeige. Die eigentliche Antriebsansteuerung übernimmt der **Weichendecoder** an
+  der Anlage (z. B. **ESU SwitchPilot Servo**); das Backend sendet nur die DCC-Schaltbefehle an
+  die Z21. Siehe technische Details in `tech.md`.
 - **Gleisplan-Anzeige** und **Gleisplan-Modellierung:** als Bereiche bereits in der Navigation
   vorgesehen, Inhalt folgt später.
 - Navigation zwischen den Bereichen über ein Menü in der App-Shell; die Verbindungsanzeige ist
   global sichtbar.
 
-Bewusst **nicht** im MVP (für spätere Versionen):
+Bewusst **noch nicht** umgesetzt (für spätere Versionen):
 
-- Weichen/Stellwerk, Blöcke, automatische Zugfahrten.
+- Stellwerk/Gleisbild, Blöcke, automatische Zugfahrten.
 - **Gleisbelegtmeldung** über den Roco **Z21 Detector (10808)**, per **CAN-Bus** an die
   Zentrale angebunden.
 - **RailCom** zur Identifikation von Loks (welche Lok belegt welchen Abschnitt), in Verbindung

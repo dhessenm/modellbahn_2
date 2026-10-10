@@ -26,6 +26,15 @@ class LocoStateResponse(BaseModel):
     functions: dict[int, bool]
 
 
+class TurnoutRequest(BaseModel):
+    position: int = Field(ge=0, le=1, description="Weichenausgang 0 oder 1")
+
+
+class TurnoutStateResponse(BaseModel):
+    address: int
+    position: int | None  # 0, 1 oder null (noch nicht geschaltet)
+
+
 class SystemStatusResponse(BaseModel):
     connected: bool
     track_power_on: bool

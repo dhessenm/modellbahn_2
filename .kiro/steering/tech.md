@@ -40,6 +40,18 @@ Ergeben sich aus der angebundenen Hardware:
 
 Details siehe `z21-protokoll.md` und das Original `external_docs/z21-lan-protokoll.pdf`.
 
+### Weichen / Zubehör
+
+- Geschaltet wird über `LAN_X_SET_TURNOUT` (DCC-Zubehöradresse, Position 0/1). Ein vollständiger
+  Schaltvorgang besteht aus **Aktivieren** (A=1) und kurz darauf **Deaktivieren** (A=0)
+  desselben Ausgangs — das ist Teil des DCC-Zubehörprotokolls, **nicht** eine Spulen-Schutzzeit.
+- Die eigentliche Antriebsansteuerung übernimmt der **Weichendecoder** an der Anlage, z. B. der
+  **ESU SwitchPilot Servo** (Servoantrieb, keine Spule). Das Backend kennt den Antriebstyp
+  nicht und sendet nur die Schaltbefehle; der Dekoder fährt den Servo selbstständig und entlastet
+  ihn. Die Impulsdauer zwischen A=1 und A=0 ist daher kurz (`turnout_pulse_s`, Default 0,2 s).
+- Weichenzustände werden über `LAN_X_TURNOUT_INFO` gelesen (`LAN_X_GET_TURNOUT_INFO` bzw.
+  Broadcasts).
+
 ### Spätere Hardware-Erweiterungen (nicht MVP)
 
 Für das Scoping hier festgehalten, in der ersten Version aber nicht umgesetzt:

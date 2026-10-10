@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from modellbahn.z21.messages import LocoInfo, SystemState, TrackPower, parse_message
+from modellbahn.z21.messages import (
+    LocoInfo,
+    SystemState,
+    TrackPower,
+    TurnoutInfo,
+    parse_message,
+)
 
 
 def _loco_info_payload(adr: int, db3: int, db4: int) -> bytes:
@@ -73,6 +79,16 @@ def test_parse_systemstate_real_sample_from_hardware() -> None:
     assert msg.track_power_on is True
     assert msg.short_circuit is False
     assert msg.emergency_stop is False
+
+
+def test_parse_turnout_info_positions() -> None:
+    # X-Header 0x43, Adresse 5, DB3 000000ZZ
+    p0 = parse_message(0x40, bytes([0x43, 0x00, 0x05, 0b01]))
+    p1 = parse_message(0x40, bytes([0x43, 0x00, 0x05, 0b10]))
+    unknown = parse_message(0x40, bytes([0x43, 0x00, 0x05, 0b00]))
+    assert isinstance(p0, TurnoutInfo) and p0.address == 5 and p0.position == 0
+    assert isinstance(p1, TurnoutInfo) and p1.position == 1
+    assert isinstance(unknown, TurnoutInfo) and unknown.position is None
 
 
 def test_parse_unknown_returns_none() -> None:

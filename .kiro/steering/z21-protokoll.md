@@ -48,8 +48,11 @@ Auslesen von Rückmeldern sowie zum Lesen/Schreiben von Decoder-CVs.
 - **Fahren (Loks):** `LAN_X_GET_LOCO_INFO`, `LAN_X_SET_LOCO_DRIVE`, `LAN_X_SET_LOCO_FUNCTION`,
   `LAN_X_SET_LOCO_FUNCTION_GROUP`, `LAN_X_SET_LOCO_BINARY_STATE`, `LAN_X_LOCO_INFO`,
   `LAN_X_SET_LOCO_E_STOP`, `LAN_X_PURGE_LOCO`.
-- **Weichen/Zubehör:** `LAN_X_GET_TURNOUT_INFO`, `LAN_X_SET_TURNOUT` (mit Queue-Bit Q=0/1),
-  `LAN_X_TURNOUT_INFO`, `LAN_X_SET_EXT_ACCESSORY`, `LAN_X_GET_EXT_ACCESSORY_INFO`.
+- **Weichen/Zubehör:** `LAN_X_GET_TURNOUT_INFO` (X-Header `0x43`, Adresse),
+  `LAN_X_SET_TURNOUT` (X-Header `0x53`, DB3 `10Q0A00P`: A=aktivieren/deaktivieren,
+  P=Ausgang 0/1, Q=0 sofort), `LAN_X_TURNOUT_INFO` (empfangen, X-Header `0x43`, DB3 `000000ZZ`:
+  00=unbekannt, 01=Position 0, 10=Position 1), `LAN_X_SET_EXT_ACCESSORY`,
+  `LAN_X_GET_EXT_ACCESSORY_INFO`.
 - **Decoder-Programmierung (CV):** `LAN_X_CV_READ`, `LAN_X_CV_WRITE`, `LAN_X_CV_NACK`,
   `LAN_X_CV_NACK_SC`, sowie DCC-/MM-Register-Befehle.
 - **Broadcast-Flags:** `LAN_SET_BROADCASTFLAGS` steuert, welche Statusmeldungen die Zentrale

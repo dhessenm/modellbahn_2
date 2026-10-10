@@ -60,3 +60,25 @@ def test_incoming_loco_info_marks_connected_and_updates_state() -> None:
     assert ctrl.state.connected is True
     assert ctrl.state.loco(3).speed == 10
     assert ctrl.state.loco(3).functions[0] is True
+
+
+def test_set_turnout_sends_activate_and_updates_state() -> None:
+    tx = FakeTransport()
+    ctrl = LocoController(transport=tx)
+    ctrl.set_turnout(address=5, position=1)
+    assert tx.sent[-1] == protocol.build_set_turnout(5, 1, activate=True)
+    assert ctrl.state.turnout(5).position == 1
+
+
+def test_deactivate_turnout_sends_deactivate() -> None:
+    tx = FakeTransport()
+    ctrl = LocoController(transport=tx)
+    ctrl.deactivate_turnout(address=5, position=1)
+    assert tx.sent[-1] == protocol.build_set_turnout(5, 1, activate=False)
+
+
+def test_incoming_turnout_info_updates_state() -> None:
+    tx = FakeTransport()
+    ctrl = LocoController(transport=tx)
+    ctrl.on_raw(0x40, bytes([0x43, 0x00, 0x05, 0b10]))  # Adresse 5, Position 1
+    assert ctrl.state.turnout(5).position == 1

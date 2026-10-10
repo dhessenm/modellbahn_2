@@ -67,6 +67,13 @@ class Settings(BaseSettings):
     # Keep-Alive-/Poll-Intervall (bewusst kurz; stellt die Verbindung schnell her).
     keepalive_interval_s: float = 5.0
 
+    # Weichen-Schaltvorgang: Zeit zwischen dem Aktivieren (A=1) und dem
+    # Deaktivieren (A=0) desselben Zubehoer-Ausgangs. Dies bildet nur den
+    # vollstaendigen DCC-Zubehoer-Schaltbefehl ab; die eigentliche Ansteuerung
+    # (z. B. Servo-Fahrweg beim ESU SwitchPilot) uebernimmt der Weichendecoder.
+    # Daher genuegt eine kurze Dauer.
+    turnout_pulse_s: float = 0.2
+
     # Log-Level: DEBUG protokolliert u. a. jedes gesendete/empfangene Z21-Paket.
     log_level: str = "DEBUG"
 

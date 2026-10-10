@@ -63,6 +63,8 @@ class LocoController:
             self.state.system.temperature_c = message.temperature_c
             self.state.system.supply_voltage_mv = message.supply_voltage_mv
             self.state.system.track_voltage_mv = message.track_voltage_mv
+        elif isinstance(message, messages.TurnoutInfo):
+            self.state.turnout(message.address).position = message.position
         self._notify()
 
     # --- ausgehende Kommandos ------------------------------------------
@@ -85,8 +87,30 @@ class LocoController:
         self.state.loco(address).functions[function] = on
         self._notify()
 
+    def set_turnout(self, address: int, position: int) -> None:
+        """Sendet den Schaltbefehl (Ausgang aktivieren) fuer die Position.
+
+        Ein vollstaendiger DCC-Zubehoer-Schaltvorgang besteht aus Aktivieren
+        (A=1) und anschliessendem Deaktivieren (A=0) desselben Ausgangs; das
+        Deaktivieren erfolgt kurz danach ueber deactivate_turnout() (durch die
+        aufrufende Schicht zeitgesteuert). Die eigentliche Antriebsansteuerung
+        (z. B. Servo-Fahrweg) uebernimmt der Weichendecoder (z. B. ESU
+        SwitchPilot), nicht dieses Backend.
+        """
+        self._tx.send(protocol.build_set_turnout(address, position, activate=True))
+        self.state.turnout(address).position = position
+        self._notify()
+
+    def deactivate_turnout(self, address: int, position: int) -> None:
+        """Schliesst den Schaltvorgang ab (Zubehoer-Ausgang deaktivieren, A=0)."""
+        self._tx.send(protocol.build_set_turnout(address, position, activate=False))
+
     def request_status(self) -> None:
         self._tx.send(protocol.build_get_status())
+
+    def request_turnout_info(self, address: int) -> None:
+        """Fordert den aktuellen Weichen-Zustand bei der Zentrale an (lesend)."""
+        self._tx.send(protocol.build_get_turnout_info(address))
 
     def request_loco_info(self, address: int) -> None:
         """Fordert den aktuellen Lok-Zustand bei der Zentrale an (rein lesend)."""

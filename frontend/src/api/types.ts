@@ -18,3 +18,8 @@ export interface LocoState {
   forward: boolean
   functions: Record<number, boolean>
 }
+
+export interface TurnoutState {
+  address: number
+  position: number | null // 0, 1 oder null (noch nicht geschaltet)
+}
