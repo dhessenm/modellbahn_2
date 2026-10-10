@@ -8,8 +8,12 @@ host = "192.168.0.111"
 # UDP-Port der Zentrale: 21105 (bevorzugt) oder 21106.
 port = 21105
 # Lokaler UDP-Quellport. 0 = vom OS gewaehlter freier Port (empfohlen).
-# Ein fester Port kann bei schnellem Neustart BrokenPipe-Fehler verursachen.
 local_port = 0
+# Lokale Bind-Adresse (Interface). Leer = automatisch die Adresse ermitteln,
+# ueber die die Z21 erreichbar ist. Bei aktivem VPN wichtig, damit nicht
+# versehentlich ueber das VPN-Interface gesendet wird ("No route to host").
+# Bei Bedarf fest setzen, z. B. "192.168.0.52".
+local_host = ""
 
 [keepalive]
 # Intervall in Sekunden. Bewusst kurz (nicht nur < Z21-Timeout ~60 s): haeufiges

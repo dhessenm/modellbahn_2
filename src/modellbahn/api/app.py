@@ -73,6 +73,7 @@ def create_app(
             on_raw=controller.on_raw,
             keepalive_interval_s=settings.keepalive_interval_s,
             local_port=settings.local_port,
+            local_host=settings.local_host,
         )
         controller.set_transport(client)
         app.state.z21_client = client

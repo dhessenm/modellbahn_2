@@ -20,10 +20,13 @@ class Settings(BaseSettings):
     z21_port: int = 21105
 
     # Lokaler UDP-Quellport. 0 = vom OS gewaehlter, freier Port (empfohlen).
-    # Ein fester Port kann bei schnellem Neustart zu BrokenPipe-Fehlern fuehren
-    # (ICMP "port unreachable" eines Vorgaenger-Sockets bleibt haengen), daher
-    # standardmaessig 0.
     local_port: int = 0
+
+    # Lokale Bind-Adresse (Interface) fuer das UDP-Socket. Leer = automatisch die
+    # Adresse ermitteln, ueber die die Z21 erreichbar ist. Wichtig bei aktivem
+    # VPN/mehreren Interfaces: Bindet man an "0.0.0.0", kann das OS beim Senden
+    # das falsche (VPN-)Interface waehlen -> OSError "No route to host".
+    local_host: str = ""
 
     # Keep-Alive-/Poll-Intervall. Bewusst kurz (nicht nur < 60 s Z21-Timeout):
     # Die GET_STATUS-Antwort kommt zuverlaessig an den eigenen UDP-Port, waehrend

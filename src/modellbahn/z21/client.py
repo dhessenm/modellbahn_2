@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import socket
 from collections.abc import Callable
 from typing import Protocol
 
@@ -71,12 +72,14 @@ class Z21UdpClient:
         keepalive_interval_s: float = 5.0,
         broadcast_flags: int | None = None,
         local_port: int = 0,
+        local_host: str = "",
     ) -> None:
         self._host = host
         self._port = port
         self._on_raw = on_raw
         self._keepalive_interval_s = keepalive_interval_s
         self._local_port = local_port
+        self._local_host = local_host
         self._broadcast_flags = (
             self.DEFAULT_BROADCAST_FLAGS if broadcast_flags is None else broadcast_flags
         )
@@ -88,14 +91,34 @@ class Z21UdpClient:
     def _mark_received(self) -> None:
         self._received_any = True
 
+    def _resolve_local_host(self) -> str:
+        """Ermittelt die lokale Adresse, ueber die die Z21 erreichbar ist.
+
+        Wichtig bei aktivem VPN/mehreren Interfaces: An diese Adresse zu binden
+        (statt 0.0.0.0) stellt sicher, dass das OS beim Senden das richtige
+        Interface (das zur Z21) waehlt. Der 'connect'-Trick auf ein temporaeres
+        UDP-Socket sendet nichts, waehlt aber die Quelladresse gemaess Routing.
+        """
+        if self._local_host:
+            return self._local_host
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            probe.connect((self._host, self._port))
+            addr: str = probe.getsockname()[0]
+            return addr
+        except OSError:
+            return "0.0.0.0"
+        finally:
+            probe.close()
+
     async def start(self) -> None:
         loop = asyncio.get_running_loop()
-        # UNVERBUNDENES Socket: KEIN remote_addr. Bei einem verbundenen UDP-Socket
-        # meldet das OS asynchrone ICMP-Fehler ("port unreachable") zurueck, die
-        # am Socket haengen bleiben und nachfolgende Sends mit BrokenPipeError
-        # scheitern lassen (reproduzierbar bei schnellem Neustart). Ein
-        # unverbundenes Socket mit explizitem Ziel pro sendto ignoriert das.
-        local_addr = ("0.0.0.0", self._local_port) if self._local_port else ("0.0.0.0", 0)
+        # UNVERBUNDENES Socket (kein remote_addr), aber explizit an das lokale
+        # Interface gebunden, das die Z21 erreicht. Beides zusammen vermeidet
+        # BrokenPipe (verbundenes Socket) UND "No route to host" (falsches
+        # Interface bei aktivem VPN).
+        bind_host = self._resolve_local_host()
+        local_addr = (bind_host, self._local_port)
         transport, _ = await loop.create_datagram_endpoint(
             lambda: _Z21DatagramProtocol(self._on_raw, self._mark_received),
             local_addr=local_addr,
