@@ -16,6 +16,10 @@ export default defineConfig({
     },
   },
   server: {
+    // Auf allen Netzwerk-Interfaces lauschen (0.0.0.0), damit die UI auch von
+    // anderen Geraeten im LAN erreichbar ist (z. B. http://192.168.0.52:5173).
+    // Standardmaessig bindet Vite nur an localhost.
+    host: true,
     // Backend-API im Dev-Modus durchreichen (FastAPI auf Port 8000).
     proxy: {
       '/api': {
