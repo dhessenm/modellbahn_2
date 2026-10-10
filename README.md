@@ -73,6 +73,33 @@ Logs landen unter `.dev-logs/`.
 
 ## Konfiguration
 
-Anlagenabhängige Werte liegen unter `conf/`. Als Vorlage dient `conf/config.example.toml`
-(Z21-IP, Port, Keep-Alive-Intervall). Werte lassen sich alternativ per Umgebungsvariablen mit
-dem Präfix `MB_` setzen (z. B. `MB_Z21_HOST`).
+Anlagenabhängige Werte werden zentral geladen. Vorlage: `conf/config.example.toml`.
+Für eigene Einstellungen die Datei kopieren:
+
+```sh
+cp conf/config.example.toml conf/config.toml
+```
+
+`conf/config.toml` wird beim Start automatisch gelesen und ist von git ignoriert.
+Die Schlüssel entsprechen 1:1 den Einstellungsnamen, z. B.:
+
+```toml
+z21_host = "192.168.0.111"
+z21_port = 21105
+keepalive_interval_s = 5.0
+log_level = "INFO"   # DEBUG | INFO | WARNING | ERROR
+```
+
+**Präzedenz** (höchste zuerst): Umgebungsvariablen mit Präfix `MB_` > `conf/config.toml` >
+eingebaute Defaults. Beispiele:
+
+```sh
+# dauerhaft über die Datei:
+echo 'log_level = "INFO"' >> conf/config.toml
+
+# einmalig/temporär über die Umgebung (überschreibt die Datei):
+MB_LOG_LEVEL=INFO scripts/dev.sh start
+```
+
+Das **Log-Level** steuert, wie viel das Backend protokolliert (`.dev-logs/backend.log`):
+`DEBUG` zeigt jedes gesendete/empfangene Z21-Paket, `INFO` nur noch wichtige Ereignisse.

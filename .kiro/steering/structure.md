@@ -70,11 +70,13 @@ modellbahn_2/
 ## Konfiguration und Assets
 
 - **Konfiguration** (umgebungs-/anlagenabhängige Werte wie **Z21-IP-Adresse**, Ports,
-  Keep-Alive-Intervall) in Konfigurationsdateien unter `conf/` auslagern, statt sie im Code zu
-  hartkodieren. So lässt sich das Deployment ohne Code-Änderung anpassen.
-- Format offen (z. B. TOML, YAML oder `.env`); eine Beispiel-/Vorlagendatei (z. B.
-  `conf/config.example.toml`) einchecken, die echte Konfiguration bei Bedarf lokal halten.
-- **Keine Geheimnisse** in das Repo committen; `.env`-Dateien sind bereits in `.gitignore`.
+  Keep-Alive-Intervall, Log-Level) liegt in **`conf/config.toml`** (Format **TOML**, geladen
+  über `src/modellbahn/config.py`). Vorlage: `conf/config.example.toml` (eingecheckt);
+  `conf/config.toml` ist lokal und von git ignoriert.
+- **Präzedenz:** Umgebungsvariablen mit Präfix `MB_` > `conf/config.toml` > Defaults. Die
+  TOML-Schlüssel entsprechen 1:1 den Einstellungsnamen (flach, z. B. `z21_host`, `log_level`).
+- **Keine Geheimnisse** in das Repo committen; `.env`- und `conf/config.toml`-Dateien sind in
+  `.gitignore`.
 - **Statische Assets** der Web-UI (Icons, Grafiken, CSS) unter `frontend/assets/` ablegen,
   getrennt vom Backend-Code.
 
@@ -91,4 +93,3 @@ modellbahn_2/
 
 - Interner Aufbau von `frontend/src/` (Komponenten, Views, State-Management, API-Client).
 - Ob das Backend als installierbares Paket (`src/`-Layout) oder flacher aufgebaut wird.
-- Konkretes Konfigurationsformat unter `conf/` (TOML/YAML/`.env`).

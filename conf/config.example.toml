@@ -1,21 +1,31 @@
 # Beispiel-Konfiguration fuer das Modellbahn-Backend.
-# Kopieren nach conf/config.toml bzw. als .env setzen und an die Anlage anpassen.
-# Umgebungsvariablen (Prefix MB_) ueberschreiben diese Werte, z. B. MB_Z21_HOST.
+#
+# Kopieren nach conf/config.toml und an die Anlage anpassen. conf/config.toml
+# wird beim Start automatisch geladen und ist von git ignoriert.
+#
+# Praezedenz (hoechste zuerst):
+#   1. Umgebungsvariablen mit Prefix MB_ (z. B. MB_Z21_HOST, MB_LOG_LEVEL)
+#   2. conf/config.toml (diese Datei bzw. deine Kopie)
+#   3. eingebaute Defaults
+#
+# Die Schluessel entsprechen 1:1 den Einstellungsnamen.
 
-[z21]
 # IP-Adresse der Z21-Zentrale im lokalen Netz.
-host = "192.168.0.111"
+z21_host = "192.168.0.111"
+
 # UDP-Port der Zentrale: 21105 (bevorzugt) oder 21106.
-port = 21105
+z21_port = 21105
+
 # Lokaler UDP-Quellport. 0 = vom OS gewaehlter freier Port (empfohlen).
 local_port = 0
-# Lokale Bind-Adresse (Interface). Leer = automatisch die Adresse ermitteln,
-# ueber die die Z21 erreichbar ist. Bei aktivem VPN wichtig, damit nicht
-# versehentlich ueber das VPN-Interface gesendet wird ("No route to host").
-# Bei Bedarf fest setzen, z. B. "192.168.0.52".
+
+# Lokale Bind-Adresse (Interface). Leer = 0.0.0.0 (OS waehlt gemaess Routing).
+# Nur in Spezialfaellen fest setzen, z. B. "192.168.0.52".
 local_host = ""
 
-[keepalive]
-# Intervall in Sekunden. Bewusst kurz (nicht nur < Z21-Timeout ~60 s): haeufiges
-# Pollen stellt die Verbindung schnell und robust her.
-interval_s = 5.0
+# Keep-Alive-/Poll-Intervall in Sekunden (bewusst kurz).
+keepalive_interval_s = 5.0
+
+# Log-Level: DEBUG | INFO | WARNING | ERROR.
+# DEBUG protokolliert jedes gesendete/empfangene Z21-Paket (ausfuehrlich).
+log_level = "INFO"
