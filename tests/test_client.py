@@ -20,6 +20,11 @@ class FakeDatagramTransport(asyncio.DatagramTransport):
     def sendto(self, data: bytes, addr: object = None) -> None:
         self.sent.append(bytes(data))
 
+    def get_extra_info(self, name: str, default: object = None) -> object:
+        return {"sockname": ("0.0.0.0", 21105), "peername": ("192.0.2.1", 21105)}.get(
+            name, default
+        )
+
     def close(self) -> None:
         self.closed = True
 

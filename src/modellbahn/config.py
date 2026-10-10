@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     # robust her (statt im schlechten Fall bis zum ersten Keep-Alive stumm zu bleiben).
     keepalive_interval_s: float = 5.0
 
+    # Log-Level: DEBUG protokolliert u. a. jedes gesendete/empfangene Z21-Paket.
+    # Standard DEBUG fuer gute Sichtbarkeit waehrend der Entwicklung; fuer den
+    # Produktivbetrieb per MB_LOG_LEVEL=INFO reduzierbar.
+    log_level: str = "DEBUG"
+
 
 def get_settings() -> Settings:
     """Liefert die geladene Konfiguration."""

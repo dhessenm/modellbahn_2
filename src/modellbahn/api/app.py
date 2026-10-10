@@ -30,6 +30,7 @@ from modellbahn.api.schemas import (
 from modellbahn.config import Settings, get_settings
 from modellbahn.domain.controller import LocoController
 from modellbahn.domain.state import LayoutState
+from modellbahn.logging_setup import configure_logging
 from modellbahn.z21.client import Z21Transport, Z21UdpClient
 
 
@@ -56,6 +57,7 @@ def create_app(
     wird ein echter Z21UdpClient erzeugt und ueber den Lifespan verwaltet.
     """
     settings = settings or get_settings()
+    configure_logging(settings.log_level)
 
     app = FastAPI(title="Modellbahn-Steuerung", version="0.1.0", lifespan=_lifespan)
     app.state.settings = settings

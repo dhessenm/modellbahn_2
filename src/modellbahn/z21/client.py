@@ -11,12 +11,15 @@ zu testen (ohne reale Zentrale).
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable
 from typing import Protocol
 
 from modellbahn.z21 import protocol
 
 RawCallback = Callable[[int, bytes], None]
+
+logger = logging.getLogger("modellbahn.z21")
 
 
 class Z21Transport(Protocol):
@@ -35,9 +38,16 @@ class _Z21DatagramProtocol(asyncio.DatagramProtocol):
         self._on_any_received = on_any_received
 
     def datagram_received(self, data: bytes, addr: object) -> None:
+        logger.debug("RECV %d B von %s: %s", len(data), addr, data.hex(" "))
         self._on_any_received()
         for header, payload in protocol.parse_datasets(data):
             self._on_raw(header, payload)
+
+    def error_received(self, exc: Exception) -> None:
+        logger.warning("UDP error_received: %r", exc)
+
+    def connection_lost(self, exc: Exception | None) -> None:
+        logger.warning("UDP connection_lost: %r", exc)
 
 
 class Z21UdpClient:
@@ -90,6 +100,16 @@ class Z21UdpClient:
         )
         self._transport = transport
         self._received_any = False
+        sockname = transport.get_extra_info("sockname")
+        peername = transport.get_extra_info("peername")
+        logger.info(
+            "Z21-UDP-Socket geoeffnet: lokal=%s remote=%s (angefordert %s:%s, local_port=%s)",
+            sockname,
+            peername,
+            self._host,
+            self._port,
+            self._local_port,
+        )
         self._send_init()
         # Start-Handshake: bei UDP-Paketverlust die Init-Pakete kurzzeitig
         # wiederholen, bis die Zentrale antwortet (statt bis zum ersten
@@ -133,6 +153,7 @@ class Z21UdpClient:
     def send(self, dataset: bytes) -> None:
         if self._transport is None:
             raise RuntimeError("Z21UdpClient ist nicht gestartet")
+        logger.debug("SEND %d B: %s", len(dataset), dataset.hex(" "))
         self._transport.sendto(dataset)
 
     async def _keepalive_loop(self) -> None:

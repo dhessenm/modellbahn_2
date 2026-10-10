@@ -71,14 +71,20 @@ export const api = {
 
     const connect = (): void => {
       if (closed) return
+      console.debug('[sse] verbinde mit /api/events')
       source = new EventSource('/api/events')
 
       source.onopen = () => {
+        console.debug('[sse] verbunden')
         backoffMs = 1000 // nach erfolgreicher Verbindung zuruecksetzen
         onReconnect?.()
       }
-      source.onmessage = () => onChange()
+      source.onmessage = () => {
+        console.debug('[sse] event: changed')
+        onChange()
+      }
       source.onerror = () => {
+        console.warn('[sse] Fehler/Abbruch, reconnect in', backoffMs, 'ms')
         // EventSource schliessen und selbst mit Backoff neu verbinden.
         source?.close()
         source = null

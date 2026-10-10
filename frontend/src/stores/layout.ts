@@ -18,8 +18,10 @@ let unsubscribe: (() => void) | null = null
 async function refreshStatus(): Promise<void> {
   try {
     status.value = await api.getSystemStatus()
+    console.debug('[store] status', JSON.parse(JSON.stringify(status.value)))
   } catch (e) {
     error.value = (e as Error).message
+    console.error('[store] status-Fehler', e)
   }
 }
 
