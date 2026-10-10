@@ -82,3 +82,7 @@ class LocoController:
 
     def request_status(self) -> None:
         self._tx.send(protocol.build_get_status())
+
+    def request_loco_info(self, address: int) -> None:
+        """Fordert den aktuellen Lok-Zustand bei der Zentrale an (rein lesend)."""
+        self._tx.send(protocol.build_get_loco_info(address))

@@ -73,6 +73,13 @@ def test_unknown_loco_returns_404() -> None:
     assert client.get("/api/locos/999").status_code == 404
 
 
+def test_subscribe_loco_requests_info_from_central() -> None:
+    client, tx = _client()
+    resp = client.post("/api/locos/3/subscribe")
+    assert resp.status_code == 204
+    assert tx.sent[-1] == protocol.build_get_loco_info(3)
+
+
 def test_drive_validation_rejects_out_of_range_speed() -> None:
     client, _ = _client()
     assert client.put("/api/locos/3/drive", json={"speed": 200}).status_code == 422

@@ -120,6 +120,16 @@ def _register_routes(
             functions=loco.functions,
         )
 
+    @app.post("/api/locos/{address}/subscribe", status_code=204)
+    def subscribe_loco(address: int) -> Response:
+        """Fordert den aktuellen Lok-Zustand bei der Zentrale an (rein lesend).
+
+        Die Antwort trifft asynchron als LAN_X_LOCO_INFO ein und aktualisiert
+        den Zustand; der Client erfaehrt dies ueber den SSE-Push.
+        """
+        controller.request_loco_info(address)
+        return Response(status_code=204)
+
     @app.put("/api/locos/{address}/drive", status_code=204)
     def drive(address: int, req: DriveRequest) -> Response:
         controller.drive(address, req.speed, req.forward)
