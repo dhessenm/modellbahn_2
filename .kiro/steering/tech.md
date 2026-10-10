@@ -50,7 +50,14 @@ Details siehe `z21-protokoll.md` und das Original `external_docs/z21-lan-protoko
   nicht und sendet nur die Schaltbefehle; der Dekoder fährt den Servo selbstständig und entlastet
   ihn. Die Impulsdauer zwischen A=1 und A=0 ist daher kurz (`turnout_pulse_s`, Default 0,2 s).
 - Weichenzustände werden über `LAN_X_TURNOUT_INFO` gelesen (`LAN_X_GET_TURNOUT_INFO` bzw.
-  Broadcasts).
+  Broadcasts). **Dies ist nur der von der Z21 geführte Soll-Zustand, keine Ist-Rückmeldung der
+  Weiche** — `LAN_X_SET_TURNOUT` wird nicht quittiert. Ein echter Ist-Zustand ist erst mit
+  Rückmeldern/Belegtmeldung möglich (siehe spätere Erweiterungen). Details in `z21-protokoll.md`.
+- **Design-Leitlinie für die spätere Automatik ("unconditional setting"):** Beim Stellen einer
+  Fahrstraße jede Weiche **immer explizit** in die benötigte Lage schalten — unabhängig vom
+  geführten Status, da der reale Weichenstand unbekannt ist (manuell verstellt, nach Neustart,
+  Decoder zwischenzeitlich stromlos). Nicht auf den gemeldeten Zustand verlassen und das Schalten
+  "sparen"; lieber den Schaltbefehl idempotent erneut senden.
 
 ### Spätere Hardware-Erweiterungen (nicht MVP)
 

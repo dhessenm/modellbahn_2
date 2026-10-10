@@ -73,3 +73,17 @@ Auslesen von Rückmeldern sowie zum Lesen/Schreiben von Decoder-CVs.
   `LAN_X_SET_TRACK_POWER_OFF` (DB0 `0x80`); Systemstatus inkl. `CentralState` über
   `LAN_SYSTEMSTATE_DATACHANGED`/`LAN_SYSTEMSTATE_GETDATA`.
 - Konkrete Byte-Layouts, Werte und Flags vor der Implementierung im Original-PDF nachschlagen.
+
+## Weichen-Rückmeldung: wichtige Einschränkung
+
+- **`LAN_X_SET_TURNOUT` hat keine Quittung** — die Spezifikation sagt ausdrücklich
+  "Antwort von Z21: keine". Es gibt also keine Bestätigung, dass der Schaltbefehl ankam oder
+  die Weiche gestellt wurde.
+- **`LAN_X_GET_TURNOUT_INFO` → `LAN_X_TURNOUT_INFO`** liefert nur den von der Z21 **geführten
+  Soll-Zustand** (zuletzt kommandierte Lage, `ZZ`), **nicht** den realen Weichenstand. Direkt
+  nach dem Start ist er `00` (unbekannt), bis einmal geschaltet/abgefragt wurde.
+- Grund: DCC ist Richtung Gleis **unidirektional**; ein einfacher Schaltdecoder meldet nichts
+  zurück. Ein echter Ist-Zustand ist nur über **Rückmelder/Belegtmeldung** möglich (später:
+  Z21 Detector 10808, ggf. RailCom) — nicht über den Schaltbefehl selbst.
+- Bleibt ein Befehl ungültig, antwortet die Z21 mit `LAN_X_UNKNOWN_COMMAND`; dessen Ausbleiben
+  ist nur ein schwaches Indiz für Erfolg (UDP ist zudem verbindungslos).
