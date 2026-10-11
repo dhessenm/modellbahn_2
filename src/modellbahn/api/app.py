@@ -20,6 +20,7 @@ from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import StreamingResponse
 
 from modellbahn.api.events import EventBroker
+from modellbahn.api.layout_routes import build_layout_router
 from modellbahn.api.schemas import (
     DetectorInputResponse,
     DetectorLocoResponse,
@@ -33,7 +34,9 @@ from modellbahn.api.schemas import (
     TurnoutStateResponse,
 )
 from modellbahn.config import Settings, get_settings
+from modellbahn.domain import layout_store
 from modellbahn.domain.controller import LocoController
+from modellbahn.domain.layout_service import LayoutService
 from modellbahn.domain.state import DetectorInput, LayoutState
 from modellbahn.logging_setup import configure_logging
 from modellbahn.z21.client import Z21Transport, Z21UdpClient
@@ -118,6 +121,42 @@ def create_app(
 
     app.state.controller = controller
     app.state.broker = broker
+
+    # Statisches Anlagenmodell beim Start laden. Eine kaputte Datei (ungueltiges
+    # JSON/Schema) wirft LayoutDecodeError; diese wird BEWUSST nicht gefangen und
+    # bricht damit create_app (und den Serverstart) klar ab -- kein stiller
+    # Rueckfall auf ein leeres Modell. Fehlt die Datei, liefert load() ein leeres
+    # Layout() und der Start laeuft mit leerem Modell weiter.
+    layout = layout_store.load(settings.layout_path)
+    layout_service = LayoutService(layout)
+    app.state.layout_service = layout_service
+
+    # Backup-Verzeichnis aus dem Modellpfad ableiten (<name>-backups/ daneben).
+    backup_dir = settings.layout_path.parent / f"{settings.layout_path.stem}-backups"
+
+    def _persist_layout() -> None:
+        """Persistiert das Modell und signalisiert die Aenderung per SSE.
+
+        Reihenfolge: erst save (mit Backup/Rotation), dann publish -- damit ein
+        SSE-Signal nie auf einen noch nicht persistierten Stand verweist. In
+        Stufe 1 KEIN Rollback: schlaegt save fehl, propagiert die Exception
+        (sichtbar als 500); das In-Memory-Modell wurde da bereits mutiert.
+        """
+        layout_store.save(
+            settings.layout_path,
+            layout_service.layout,
+            backup_dir=backup_dir,
+            backup_count=settings.layout_backup_count,
+        )
+        broker.publish()
+
+    app.include_router(
+        build_layout_router(
+            get_service=lambda: layout_service,
+            get_state=lambda: controller.state,
+            on_mutation=_persist_layout,
+        )
+    )
 
     _register_routes(app, controller, broker, settings)
     return app
@@ -227,9 +266,7 @@ def _register_routes(
             controller.state.detectors.values(),
             key=lambda d: (d.addr, d.nid, d.port),
         )
-        return DetectorsResponse(
-            detectors=[_detector_to_response(d) for d in detectors]
-        )
+        return DetectorsResponse(detectors=[_detector_to_response(d) for d in detectors])
 
     @app.post("/api/detectors/refresh", status_code=204)
     def refresh_detectors() -> Response:
