@@ -30,21 +30,25 @@ Kurzer Faden für den Wiedereinstieg. Für Architektur, Technik und Protokolldet
   (Header `0xC4`), Broadcast-Flag `0x00080000`. Dekodierung → `DetectorInput`-Zustand
   (Schlüssel `(nid, port)`) → REST `GET /api/detectors` + `POST /api/detectors/refresh` +
   SSE → UI-Seite „Belegtmelder" (LED belegt/frei, Statustext, RailCom-Lokadressen mit
-  Richtung, Überlast-Hervorhebung). Gegen dokumentierte + reale Beispiel-Bytes getestet.
+  Richtung, Überlast-Hervorhebung). **Live gegen real angeschlossenen 10808 verifiziert:**
+  Belegt-Änderungen (inkl. RailCom-Lok) erscheinen per Broadcast in der Web-UI.
 - **Infrastruktur**: TOML-Konfig, DEBUG-Logging, Dev-Skript, Tests, CI mit Status-Badge.
 
-## Als Nächstes: Automatik Belegtmeldung → Stop + Hardware-Test
+## Als Nächstes: Automatik Belegtmeldung → Stop
 
-Die **Anzeige** der Belegtmeldung ist erledigt (siehe Stand oben). Offen bleibt:
+Die **Anzeige** der Belegtmeldung ist erledigt und live gegen den realen 10808 verifiziert
+(siehe Stand oben). Offen bleibt:
 
-- **Echter 10808-Test:** Die Hardware wird separat angeschlossen; die Dekodierung ist gegen
-  dokumentierte und bereits an echter Z21 verifizierte Beispiel-Bytes getestet. Beim nächsten
-  Mal die Live-Anzeige gegen den real angeschlossenen Detector prüfen.
 - **Latenzkritische Automatik Belegtmeldung → Stop** (punktgenaues Halten): ereignisgesteuert,
   minimale Verzögerung (siehe Latenz-Leitlinie in `tech.md`). Baut auf der vorhandenen Anzeige
   auf, erfordert Blocklogik und einen schnellen Stop-Pfad.
 - **Merker Anzeige:** Melder werden über die stabile **NId** gruppiert (Moduladresse `addr`
   kommt real oft als `0`); Eingänge sind in der UI 1-basiert (`Port+1`), intern 0-basiert.
+- **Merker Broadcast-Empfang:** Die Z21 sendet CAN-Broadcasts an den registrierten Client.
+  Blieben Broadcasts aus, lag es an einem **verwaisten uvicorn-Prozess**, der den UDP-Socket
+  (und damit den Z21-Client-Slot) weiter belegte, obwohl er kein TCP:8000 mehr hielt. `dev.sh
+  stop`/`status` räumen bzw. zeigen solche Prozesse jetzt mit ab. Nicht am Socket-Typ drehen
+  (unverbundenes `0.0.0.0`-Socket ist korrekt).
 
 ## Offene Punkte / Merker
 
