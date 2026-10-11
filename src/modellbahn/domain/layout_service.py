@@ -6,8 +6,10 @@ Melder-Zuordnungen) laufen ueber den Service und werden VOR dem Schreiben hart
 validiert: schlaegt eine Validierung fehl, bleibt das Modell unveraendert.
 
 Bewusste Abgrenzung: Dieses Modul macht KEINE Datei-IO/Persistenz (Aufgabe 5),
-KEINE weichen Konsistenz-WARNUNGEN (Aufgabe 4; hier nur harte Fachregeln), KEINE
-API/HTTP-Bindung und leitet KEINEN Live-Blockzustand ab (Aufgabe 6). Reine
+KEINE API/HTTP-Bindung und leitet KEINEN Live-Blockzustand ab (Aufgabe 6). Die
+weichen Konsistenz-WARNUNGEN (Aufgabe 4) berechnet das reine Helfermodul
+`layout_consistency`; der Service exponiert sie nur ueber `block_warnings`/
+`layout_warnings` und wirft harte Fehler fuer unsinnige Werte. Reine
 Standardbibliothek; keine FastAPI-/HTTP-/UDP-Abhaengigkeit.
 
 Fehler werden als domaeneneigene Exceptions geworfen (kein HTTP-Bezug):
@@ -32,6 +34,10 @@ from modellbahn.domain.layout import (
     Marker,
     Route,
     TopologyElement,
+)
+from modellbahn.domain.layout_consistency import (
+    ConsistencyWarning,
+    block_consistency_warnings,
 )
 
 
@@ -177,6 +183,21 @@ class LayoutService:
                 raise LayoutValidationError("Starre Kreuzung darf keine Adresse haben.")
 
     @staticmethod
+    def _validate_non_negative(value: int | None, label: str) -> None:
+        """Wirft bei negativem Wert; `None` ist erlaubt (nicht gesetzt).
+
+        Harte Pruefung fuer unsinnige Werte vor jeder Mutation.
+        """
+        if value is not None and value < 0:
+            raise LayoutValidationError(f"{label} darf nicht negativ sein.")
+
+    def _validate_marker_positions_non_negative(self, markers: DirectionMarkers, ctx: str) -> None:
+        """Prueft, dass gesetzte Marker-Positionen nicht negativ sind."""
+        for marker, name in ((markers.stop, "stop"), (markers.brake, "brake")):
+            if marker is not None:
+                self._validate_non_negative(marker.position_mm, f"{ctx}.{name}.position_mm")
+
+    @staticmethod
     def _validate_marker(marker: Marker | None, ctx: str) -> None:
         """Prueft die Marker-xor-Regel: genau EINES von detector_ref/position_mm.
 
@@ -262,6 +283,8 @@ class LayoutService:
         """Legt einen neuen Block an und gibt ihn mit vergebener ID zurueck."""
         self._require_nonempty_name(name)
         self._check_name_unique(name, self.layout.blocks, "Block")
+        self._validate_non_negative(length_mm, "Blocklaenge")
+        self._validate_non_negative(max_speed_kmh, "Vorbildgeschwindigkeit")
         block = Block(
             id=self._new_id(),
             name=name,
@@ -290,10 +313,14 @@ class LayoutService:
         if name is not None:
             self._require_nonempty_name(name)
             self._check_name_unique(name, self.layout.blocks, "Block", exclude_id=block_id)
+        self._validate_non_negative(length_mm, "Blocklaenge")
+        self._validate_non_negative(max_speed_kmh, "Vorbildgeschwindigkeit")
         if markers_forward is not None:
             self._validate_direction_markers(markers_forward, "markers_forward")
+            self._validate_marker_positions_non_negative(markers_forward, "markers_forward")
         if markers_backward is not None:
             self._validate_direction_markers(markers_backward, "markers_backward")
+            self._validate_marker_positions_non_negative(markers_backward, "markers_backward")
 
         if name is not None:
             block.name = name
@@ -346,8 +373,28 @@ class LayoutService:
         """
         block = self._require_block(block_id)
         self._validate_detectors(assignments)
+        for assignment in assignments:
+            self._validate_non_negative(assignment.length_mm, "Teillaenge")
         block.detectors = list(assignments)
         return block
+
+    def block_warnings(self, block_id: str) -> list[ConsistencyWarning]:
+        """Liefert die nicht-blockierenden Konsistenz-Warnungen eines Blocks."""
+        block = self._require_block(block_id)
+        return block_consistency_warnings(block)
+
+    def layout_warnings(self) -> dict[str, list[ConsistencyWarning]]:
+        """Liefert je Block die Konsistenz-Warnungen; nur Bloecke mit >= 1 Warnung.
+
+        Kompaktes Mapping `block_id -> Warnungen` fuer die spaetere API; Bloecke
+        ohne Warnung werden ausgelassen.
+        """
+        result: dict[str, list[ConsistencyWarning]] = {}
+        for block_id, block in self.layout.blocks.items():
+            warnings = block_consistency_warnings(block)
+            if warnings:
+                result[block_id] = warnings
+        return result
 
     # ------------------------------------------------------------------
     # TopologyElement-CRUD

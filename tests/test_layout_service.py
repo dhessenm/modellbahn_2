@@ -16,6 +16,7 @@ from modellbahn.domain.layout import (
     Layout,
     Marker,
 )
+from modellbahn.domain.layout_consistency import WARN_LENGTH_SUM
 from modellbahn.domain.layout_service import (
     LayoutService,
     LayoutValidationError,
@@ -536,3 +537,114 @@ def test_update_route_valid_change_applied() -> None:
     )
     assert updated.element_settings[0].element_id == weiche_id
     assert updated.element_settings[0].desired_state == 1
+
+
+# ---------------------------------------------------------------------------
+# Harte Fehler fuer unsinnige Werte (Aufgabe 4)
+# ---------------------------------------------------------------------------
+def test_create_block_negative_length_rejected() -> None:
+    service = LayoutService()
+    with pytest.raises(LayoutValidationError):
+        service.create_block("A", length_mm=-1)
+    assert service.layout.blocks == {}
+
+
+def test_create_block_negative_max_speed_rejected() -> None:
+    service = LayoutService()
+    with pytest.raises(LayoutValidationError):
+        service.create_block("A", max_speed_kmh=-5)
+    assert service.layout.blocks == {}
+
+
+def test_update_block_negative_length_rejected_unchanged() -> None:
+    service = LayoutService()
+    block = service.create_block("A", length_mm=1000)
+    with pytest.raises(LayoutValidationError):
+        service.update_block(block.id, length_mm=-1)
+    assert service.get_block(block.id).length_mm == 1000
+
+
+def test_update_block_negative_marker_position_rejected() -> None:
+    service = LayoutService()
+    block = service.create_block("A", length_mm=1000)
+    with pytest.raises(LayoutValidationError):
+        service.update_block(
+            block.id, markers_forward=DirectionMarkers(stop=Marker(position_mm=-1))
+        )
+    assert service.get_block(block.id).markers_forward.stop is None
+
+
+def test_set_block_detectors_negative_length_rejected() -> None:
+    service = LayoutService()
+    block = service.create_block("A", length_mm=1000)
+    with pytest.raises(LayoutValidationError):
+        service.set_block_detectors(
+            block.id,
+            [DetectorAssignment(detector_nid=1, detector_port=1, order=0, length_mm=-10)],
+        )
+    assert service.get_block(block.id).detectors == []
+
+
+# ---------------------------------------------------------------------------
+# Exposition der Konsistenz-Warnungen (Aufgabe 4)
+# ---------------------------------------------------------------------------
+def test_block_warnings_returns_sum_mismatch() -> None:
+    service = LayoutService()
+    block = service.create_block("A", length_mm=1000)
+    service.set_block_detectors(
+        block.id,
+        [
+            DetectorAssignment(detector_nid=1, detector_port=1, order=0, length_mm=400),
+            DetectorAssignment(detector_nid=1, detector_port=2, order=1, length_mm=500),
+        ],
+    )
+    codes = {w.code for w in service.block_warnings(block.id)}
+    assert WARN_LENGTH_SUM in codes
+
+
+def test_block_warnings_clean_block_empty() -> None:
+    service = LayoutService()
+    block = service.create_block("A", length_mm=1000)
+    service.set_block_detectors(
+        block.id,
+        [
+            DetectorAssignment(detector_nid=1, detector_port=1, order=0, length_mm=400),
+            DetectorAssignment(detector_nid=1, detector_port=2, order=1, length_mm=600),
+        ],
+    )
+    assert service.block_warnings(block.id) == []
+
+
+def test_layout_warnings_maps_only_blocks_with_warnings() -> None:
+    service = LayoutService()
+    bad = service.create_block("Bad", length_mm=1000)
+    service.set_block_detectors(
+        bad.id,
+        [
+            DetectorAssignment(detector_nid=1, detector_port=1, order=0, length_mm=400),
+            DetectorAssignment(detector_nid=1, detector_port=2, order=1, length_mm=500),
+        ],
+    )
+    good = service.create_block("Good", length_mm=1000)
+    service.set_block_detectors(
+        good.id,
+        [
+            DetectorAssignment(detector_nid=1, detector_port=1, order=0, length_mm=400),
+            DetectorAssignment(detector_nid=1, detector_port=2, order=1, length_mm=600),
+        ],
+    )
+    warnings = service.layout_warnings()
+    assert set(warnings) == {bad.id}
+
+
+def test_mutation_return_types_unchanged() -> None:
+    service = LayoutService()
+    created = service.create_block("A", length_mm=1000)
+    assert service.get_block(created.id) is created
+    updated = service.update_block(created.id, length_mm=1200)
+    assert updated is created
+    with_detectors = service.set_block_detectors(
+        created.id,
+        [DetectorAssignment(detector_nid=1, detector_port=1, order=0, length_mm=1200)],
+    )
+    assert with_detectors is created
