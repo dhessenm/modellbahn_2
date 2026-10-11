@@ -477,3 +477,62 @@ def test_delete_unknown_raises() -> None:
         service.delete_element("nope")
     with pytest.raises(LayoutValidationError):
         service.delete_route("nope")
+
+
+# ---------------------------------------------------------------------------
+# Update-Pfade: eigene Validierung vor der Mutation (Befund 3 aus Review)
+# ---------------------------------------------------------------------------
+def test_update_element_rename_to_foreign_name_rejected() -> None:
+    service = LayoutService()
+    service.create_element("W1", ElementType.TURNOUT, address=5)
+    w2 = service.create_element("W2", ElementType.TURNOUT, address=6)
+    with pytest.raises(LayoutValidationError):
+        service.update_element(w2.id, name="w1")
+    # Name bleibt nach abgelehntem Update unveraendert.
+    assert service.get_element(w2.id).name == "W2"
+
+
+def test_update_element_rename_to_own_name_ok() -> None:
+    service = LayoutService()
+    element = service.create_element("W1", ElementType.TURNOUT, address=5)
+    updated = service.update_element(element.id, name="W1")
+    assert updated.name == "W1"
+
+
+def test_update_route_rename_to_foreign_name_rejected() -> None:
+    service, start_id, end_id, _weiche_id, _kreuzung_id = _service_with_route_prereqs()
+    service.create_route("R1", start_block_id=start_id, end_block_id=end_id)
+    r2 = service.create_route("R2", start_block_id=start_id, end_block_id=end_id)
+    with pytest.raises(LayoutValidationError):
+        service.update_route(r2.id, name="r1")
+    assert service.get_route(r2.id).name == "R2"
+
+
+def test_update_route_to_unknown_block_rejected_and_unchanged() -> None:
+    service, start_id, end_id, _weiche_id, _kreuzung_id = _service_with_route_prereqs()
+    route = service.create_route("R", start_block_id=start_id, end_block_id=end_id)
+    with pytest.raises(LayoutValidationError):
+        service.update_route(route.id, end_block_id="nope")
+    # Fahrstrasse bleibt bei Fehler unveraendert (Zielzustand wurde vor Mutation geprueft).
+    assert service.get_route(route.id).end_block_id == end_id
+
+
+def test_update_route_crossing_in_element_settings_rejected() -> None:
+    service, start_id, end_id, _weiche_id, kreuzung_id = _service_with_route_prereqs()
+    route = service.create_route("R", start_block_id=start_id, end_block_id=end_id)
+    with pytest.raises(LayoutValidationError):
+        service.update_route(
+            route.id,
+            element_settings=[ElementSetting(element_id=kreuzung_id, desired_state=0)],
+        )
+
+
+def test_update_route_valid_change_applied() -> None:
+    service, start_id, end_id, weiche_id, _kreuzung_id = _service_with_route_prereqs()
+    route = service.create_route("R", start_block_id=start_id, end_block_id=end_id)
+    updated = service.update_route(
+        route.id,
+        element_settings=[ElementSetting(element_id=weiche_id, desired_state=1)],
+    )
+    assert updated.element_settings[0].element_id == weiche_id
+    assert updated.element_settings[0].desired_state == 1
