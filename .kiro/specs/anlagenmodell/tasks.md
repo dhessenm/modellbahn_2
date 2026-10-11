@@ -162,6 +162,7 @@
     Anlagenmodell + Persistenz ergänzen; Terminologie konsistent zu `traincontroller-domaene.md`.
   - _Requirements: 9.6_
 
-- [ ] 21. CI prüfen und Stufe abschließen
-  - Alles committen/pushen (deutsche Commit-Messages); CI grün (`gh run list`).
+- [x] 21. CI prüfen und Stufe abschließen
+  - Alles committen/pushen (deutsche Commit-Messages); CI grün (`gh run list`). Feature-Branch
+    per Fast-Forward nach main gemergt (3503dbe), CI success, Worktree + Branch entfernt.
   - _Requirements: 9.5_
