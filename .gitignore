@@ -46,3 +46,8 @@ conf/layout-backups/
 
 # Externe Referenzdokumentation (nicht Teil des Repos)
 external_docs/
+
+# Agent-/Workflow-Artefakte (Plaene, Verifikationsnotizen) -- nicht Teil des Repos
+.agents/
+.worktrees/
+verification-task*.md
