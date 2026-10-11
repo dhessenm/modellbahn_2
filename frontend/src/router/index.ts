@@ -25,6 +25,11 @@ const router = createRouter({
       component: () => import('../views/DetectorView.vue'),
     },
     {
+      path: '/layout',
+      name: 'layout',
+      component: () => import('../views/LayoutView.vue'),
+    },
+    {
       path: '/track-plan',
       name: 'track-plan',
       component: () => import('../views/TrackPlanView.vue'),

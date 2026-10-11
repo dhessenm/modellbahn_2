@@ -24,6 +24,7 @@ onUnmounted(() => {
         <RouterLink to="/throttle">Lokführerstand</RouterLink>
         <RouterLink to="/turnouts">Weichen</RouterLink>
         <RouterLink to="/detectors">Belegtmelder</RouterLink>
+        <RouterLink to="/layout">Anlage</RouterLink>
         <RouterLink to="/track-plan">Gleisplan</RouterLink>
         <RouterLink to="/track-edit">Gleisplan bearbeiten</RouterLink>
       </nav>

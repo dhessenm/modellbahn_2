@@ -2,6 +2,18 @@
 // Die Web-UI spricht ausschliesslich ueber diese Schnittstelle mit dem Backend.
 
 import type { DetectorInput, LocoState, SystemStatus, TurnoutState } from './types'
+import type {
+  BlockRuntime,
+  BlockWrite,
+  BlockWriteResponse,
+  DetectorAssignmentsBody,
+  ElementWrite,
+  LayoutModel,
+  Route,
+  RouteWrite,
+  TopologyElement,
+} from './layout-types'
+import { layoutErrorFromResponse } from './layout-error'
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
   const resp = await fetch(path, init)
@@ -19,6 +31,36 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 function jsonBody(body: unknown): RequestInit {
   return {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }
+}
+
+// Eigene Fehlerbehandlung fuer die Layout-Routen: Bei nicht-ok-Response
+// (400/404/409 ...) wird der JSON-Body gelesen und eine `LayoutApiError`
+// (mit status/detail/blocked_by) geworfen -- statt des generischen Error aus
+// `request`. Das Verhalten der uebrigen Methoden (System/Lok/Weiche/Melder)
+// bleibt dadurch unveraendert.
+async function layoutRequest(path: string, init?: RequestInit): Promise<Response> {
+  const resp = await fetch(path, init)
+  if (!resp.ok) {
+    throw await layoutErrorFromResponse(resp)
+  }
+  return resp
+}
+
+async function layoutJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const resp = await layoutRequest(path, init)
+  return (await resp.json()) as T
+}
+
+async function layoutVoid(path: string, init?: RequestInit): Promise<void> {
+  await layoutRequest(path, init)
+}
+
+function layoutBody(method: 'POST' | 'PUT', body: unknown): RequestInit {
+  return {
+    method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   }
@@ -79,14 +121,68 @@ export const api = {
     await request('/api/detectors/refresh', { method: 'POST' })
   },
 
+  // --- Anlagenmodell (/api/layout) ---
+  // Lesemethoden liefern das Gesamtmodell bzw. den Laufzeitzustand.
+  // Schreibmethoden fuer Bloecke liefern den Wrapper { entity, warnings };
+  // fuer Elemente/Routen die nackte Entitaet. DELETE liefert void (204);
+  // bei Referenz-Konflikt wirft die Methode eine LayoutApiError (409).
+
+  getLayout(): Promise<LayoutModel> {
+    return layoutJson<LayoutModel>('/api/layout')
+  },
+
+  getLayoutRuntime(): Promise<BlockRuntime[]> {
+    return layoutJson<BlockRuntime[]>('/api/layout/runtime')
+  },
+
+  createBlock(body: BlockWrite): Promise<BlockWriteResponse> {
+    return layoutJson<BlockWriteResponse>('/api/layout/blocks', layoutBody('POST', body))
+  },
+
+  updateBlock(id: string, body: BlockWrite): Promise<BlockWriteResponse> {
+    return layoutJson<BlockWriteResponse>(`/api/layout/blocks/${id}`, layoutBody('PUT', body))
+  },
+
+  deleteBlock(id: string): Promise<void> {
+    return layoutVoid(`/api/layout/blocks/${id}`, { method: 'DELETE' })
+  },
+
+  setBlockDetectors(id: string, body: DetectorAssignmentsBody): Promise<BlockWriteResponse> {
+    return layoutJson<BlockWriteResponse>(
+      `/api/layout/blocks/${id}/detectors`,
+      layoutBody('PUT', body),
+    )
+  },
+
+  createElement(body: ElementWrite): Promise<TopologyElement> {
+    return layoutJson<TopologyElement>('/api/layout/elements', layoutBody('POST', body))
+  },
+
+  updateElement(id: string, body: ElementWrite): Promise<TopologyElement> {
+    return layoutJson<TopologyElement>(`/api/layout/elements/${id}`, layoutBody('PUT', body))
+  },
+
+  deleteElement(id: string): Promise<void> {
+    return layoutVoid(`/api/layout/elements/${id}`, { method: 'DELETE' })
+  },
+
+  createRoute(body: RouteWrite): Promise<Route> {
+    return layoutJson<Route>('/api/layout/routes', layoutBody('POST', body))
+  },
+
+  updateRoute(id: string, body: RouteWrite): Promise<Route> {
+    return layoutJson<Route>(`/api/layout/routes/${id}`, layoutBody('PUT', body))
+  },
+
+  deleteRoute(id: string): Promise<void> {
+    return layoutVoid(`/api/layout/routes/${id}`, { method: 'DELETE' })
+  },
+
   // SSE: ruft onChange bei jeder Zustandsaenderung im Backend auf.
   // Robust gegen Verbindungsabbrueche: reconnectet mit exponentiellem Backoff
   // und meldet jede (Wieder-)Verbindung ueber onReconnect, damit der Aufrufer
   // den Zustand frisch nachladen kann.
-  subscribeEvents(
-    onChange: () => void,
-    onReconnect?: () => void,
-  ): () => void {
+  subscribeEvents(onChange: () => void, onReconnect?: () => void): () => void {
     let source: EventSource | null = null
     let retryTimer: ReturnType<typeof setTimeout> | null = null
     let backoffMs = 1000
