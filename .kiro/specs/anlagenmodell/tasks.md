@@ -152,9 +152,13 @@
 
 ## D. Abschluss: Konfiguration, Doku, Verifikation
 
-- [ ] 19. Live-Verifikation gegen echte Z21 (Blockzustand)
+- [x] 19. Live-Verifikation gegen echte Z21 (Blockzustand)
   - Realen Melder einem Block zuordnen; Umschalten → Blockzustand/`runtime` live in der UI prüfen
     (nutzt bestehendes Initial-Einlesen/Refresh). Beobachtung dokumentieren.
+  - **Verifiziert:** Block 1 mit Melder (55140, Port 0); `/api/layout/runtime` zeigt
+    `occupancy: occupied` + `loco_addresses: [3]` (RailCom); UI wechselt live bei
+    Statuswechsel des Belegtmelders. Kette Z21-Broadcast → Backend → Blockzustand → SSE → UI
+    bestätigt.
   - _Requirements: 4.5/4.6; Design §5, D15_
 
 - [x] 20. Doku und Steering nachführen

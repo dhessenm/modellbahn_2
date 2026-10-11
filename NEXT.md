@@ -53,16 +53,15 @@ Kurzer Faden für den Wiedereinstieg. Für Architektur, Technik und Protokolldet
     Store `stores/anlage.ts`.
   - Bewusst NICHT in Stufe 1: Automatik/Verriegelung, Fahrstraßen stellen, Routing, Zug-/
     Lok-Objekte/Einmessung, Maßstabsumrechnung, gezeichnetes Gleisbild.
+  - **Live gegen echte Z21 verifiziert:** Block mit zugeordnetem Melder (55140, Port 0);
+    `/api/layout/runtime` meldet `occupied` + RailCom-Lok 3; UI-Seite „Anlage" wechselt live
+    bei Statuswechsel des Belegtmelders (Kette Broadcast → Blockzustand → SSE → UI).
 - **Infrastruktur**: TOML-Konfig, DEBUG-Logging, Dev-Skript, Tests, CI mit Status-Badge.
 
 ## Als Nächstes
 
 Das statische Anlagenmodell (Stufe 1) steht als Fundament. Offen:
 
-- **Live-Verifikation Anlagenmodell (Spec-Aufgabe 19):** realen Melder einem Block zuordnen,
-  Eingang umschalten und den abgeleiteten Blockzustand (`/api/layout/runtime` bzw. UI-Seite
-  „Anlage") live prüfen (nutzt das vorhandene Initial-Einlesen/Refresh der Melderanzeige).
-  Steht noch aus.
 - **Latenzkritische Automatik Belegtmeldung → Stop** (punktgenaues Halten): ereignisgesteuert,
   minimale Verzögerung (siehe Latenz-Leitlinie in `tech.md`). Baut auf dem Anlagenmodell
   (Blöcke, Markierungen, Blockzustand) auf, erfordert Verriegelung und einen schnellen
