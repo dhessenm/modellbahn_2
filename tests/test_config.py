@@ -44,3 +44,22 @@ def test_unknown_toml_keys_are_ignored(monkeypatch: Any, tmp_path: Path) -> None
     monkeypatch.setattr(config, "_CONFIG_PATH", cfg)
     s = config.get_settings()
     assert s.z21_port == 21106
+
+
+def test_layout_settings_defaults(monkeypatch: Any, tmp_path: Path) -> None:
+    # Ohne TOML/Env greifen die Defaults fuer das Anlagenmodell.
+    monkeypatch.setattr(config, "_CONFIG_PATH", tmp_path / "fehlt.toml")
+    s = config.get_settings()
+    assert s.layout_path == config._DEFAULT_LAYOUT_PATH
+    assert s.layout_path.name == "layout.json"
+    assert s.layout_backup_count == 10
+
+
+def test_layout_settings_env_override(monkeypatch: Any, tmp_path: Path) -> None:
+    monkeypatch.setattr(config, "_CONFIG_PATH", tmp_path / "fehlt.toml")
+    custom = tmp_path / "eigenes-layout.json"
+    monkeypatch.setenv("MB_LAYOUT_PATH", str(custom))
+    monkeypatch.setenv("MB_LAYOUT_BACKUP_COUNT", "3")
+    s = config.get_settings()
+    assert s.layout_path == custom
+    assert s.layout_backup_count == 3

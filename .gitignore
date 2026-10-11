@@ -40,5 +40,9 @@ frontend/.playwright/
 # Lokale Konfiguration (Beispiel bleibt eingecheckt)
 conf/config.toml
 
+# Lokales Anlagenmodell + Backups (Beispiel bleibt eingecheckt)
+conf/layout.json
+conf/layout-backups/
+
 # Externe Referenzdokumentation (nicht Teil des Repos)
 external_docs/

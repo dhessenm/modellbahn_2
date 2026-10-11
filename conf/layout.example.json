@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "blocks": [
+    {
+      "id": "00000000000000000000000000000001",
+      "name": "Beispielblock",
+      "length_mm": 900,
+      "max_speed_kmh": 120,
+      "detectors": [
+        {
+          "detector_nid": 55140,
+          "detector_port": 0,
+          "order": 0,
+          "length_mm": 900
+        }
+      ],
+      "markers_forward": {
+        "stop": { "detector_ref": null, "position_mm": 850 },
+        "brake": { "detector_ref": null, "position_mm": 600 }
+      },
+      "markers_backward": {
+        "stop": { "detector_ref": null, "position_mm": 50 },
+        "brake": { "detector_ref": null, "position_mm": 300 }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "00000000000000000000000000000010",
+      "name": "Beispielweiche",
+      "type": "turnout",
+      "address": 1,
+      "address_b": null
+    }
+  ],
+  "routes": []
+}

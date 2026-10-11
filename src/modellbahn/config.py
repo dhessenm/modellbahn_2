@@ -24,7 +24,12 @@ from pydantic_settings import (
 
 # conf/config.toml liegt im Projektwurzelverzeichnis (zwei Ebenen ueber dieser Datei:
 # src/modellbahn/config.py -> Projektwurzel).
-_CONFIG_PATH = Path(__file__).resolve().parents[2] / "conf" / "config.toml"
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_CONFIG_PATH = _PROJECT_ROOT / "conf" / "config.toml"
+
+# Default-Ablageort des statischen Anlagenmodells (JSON). Absolut gegen die
+# Projektwurzel, damit er unabhaengig vom Arbeitsverzeichnis stimmt.
+_DEFAULT_LAYOUT_PATH = _PROJECT_ROOT / "conf" / "layout.json"
 
 
 class _TomlConfigSource(PydanticBaseSettingsSource):
@@ -76,6 +81,15 @@ class Settings(BaseSettings):
 
     # Log-Level: DEBUG protokolliert u. a. jedes gesendete/empfangene Z21-Paket.
     log_level: str = "DEBUG"
+
+    # Statisches Anlagenmodell (Bloecke, Elemente, Fahrstrassen) als JSON-Datei.
+    # Getrennt von conf/config.toml; wird vom LayoutStore gelesen/geschrieben.
+    # Das Backup-Verzeichnis leitet die App daraus ab (<layout>-backups/ neben
+    # der Datei). Default liegt in conf/.
+    layout_path: Path = _DEFAULT_LAYOUT_PATH
+
+    # Anzahl der aufzubewahrenden versionierten Modell-Backups (Rotation).
+    layout_backup_count: int = 10
 
     @classmethod
     def settings_customise_sources(
