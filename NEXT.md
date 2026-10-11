@@ -63,3 +63,5 @@ siehe Latenz-Leitlinie in `tech.md`; wichtig für späteres punktgenaues Halten)
 - Weichen-Komfort: Benennung, mehrere Weichen, Adresszählung ab 1.
 - RailCom zur Lok-Identifikation (zusammen mit Belegtmeldung).
 - uvicorn-Access-Log konfigurieren.
+- **Produktiv-Deployment** (Backend + Frontend auf Raspberry Pi, Single-Service): geplant,
+  siehe `docs/deployment.md`. Noch nicht umgesetzt.
