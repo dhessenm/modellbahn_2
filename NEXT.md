@@ -32,16 +32,41 @@ Kurzer Faden für den Wiedereinstieg. Für Architektur, Technik und Protokolldet
   SSE → UI-Seite „Belegtmelder" (LED belegt/frei, Statustext, RailCom-Lokadressen mit
   Richtung, Überlast-Hervorhebung). **Live gegen real angeschlossenen 10808 verifiziert:**
   Belegt-Änderungen (inkl. RailCom-Lok) erscheinen per Broadcast in der Web-UI.
+- **Statisches Anlagenmodell (Stufe 1)** — Fundament für den automatischen Zugbetrieb
+  (Spec unter `.kiro/specs/anlagenmodell/`). Persistentes, vom Anwender gepflegtes Modell,
+  strikt getrennt vom Live-Zustand:
+  - **Domäne** (`src/modellbahn/domain/`): `layout.py` (Blöcke, Topologie-Elemente
+    Weiche/DKW/starre Kreuzung, Melder-Zuordnung mit Reihenfolge+Teillänge, Halte-/
+    Bremsmarkierungen je Richtung, Fahrstraßen), `layout_codec.py` (JSON ±Schema-Version),
+    `layout_service.py` (CRUD + harte Validierung + Löschschutz mit `blocked_by`),
+    `layout_consistency.py` (nicht-blockierende Warnungen), `layout_store.py` (atomare
+    Persistenz + rotierte Backups), `block_runtime.py` (abgeleiteter Blockzustand).
+  - **Leitprinzip „Belegung vor Identität":** Block belegt = ODER über zugeordnete Melder;
+    ohne live bekannten Melder `unknown` (nicht `free`); RailCom-Lokadressen als Menge.
+  - **Längen:** intern/API/Persistenz einheitlich **ganze Millimeter**; UI zeigt mm/cm/Zoll.
+  - **API** (`/api/layout`): Gesamtmodell + `/runtime` (Blockzustand) + CRUD; Fehler 400/404/409
+    (`blocked_by`), Schreibantworten mit `warnings`; Persistenz + SSE nach jeder Mutation.
+    Modelldatei `conf/layout.json` (git-ignoriert, Vorlage `conf/layout.example.json`),
+    Backups unter `conf/layout-backups/`.
+  - **Web-UI** (`/layout`, Menü „Anlage"): listen-/schemaartig (kein Gleisbild), Komponenten
+    `BlockList`/`ElementList`/`RouteList`, Laufzeit-LED + RailCom-Loks live via SSE, eigener
+    Store `stores/anlage.ts`.
+  - Bewusst NICHT in Stufe 1: Automatik/Verriegelung, Fahrstraßen stellen, Routing, Zug-/
+    Lok-Objekte/Einmessung, Maßstabsumrechnung, gezeichnetes Gleisbild.
 - **Infrastruktur**: TOML-Konfig, DEBUG-Logging, Dev-Skript, Tests, CI mit Status-Badge.
 
-## Als Nächstes: Automatik Belegtmeldung → Stop
+## Als Nächstes
 
-Die **Anzeige** der Belegtmeldung ist erledigt und live gegen den realen 10808 verifiziert
-(siehe Stand oben). Offen bleibt:
+Das statische Anlagenmodell (Stufe 1) steht als Fundament. Offen:
 
+- **Live-Verifikation Anlagenmodell (Spec-Aufgabe 19):** realen Melder einem Block zuordnen,
+  Eingang umschalten und den abgeleiteten Blockzustand (`/api/layout/runtime` bzw. UI-Seite
+  „Anlage") live prüfen (nutzt das vorhandene Initial-Einlesen/Refresh der Melderanzeige).
+  Steht noch aus.
 - **Latenzkritische Automatik Belegtmeldung → Stop** (punktgenaues Halten): ereignisgesteuert,
-  minimale Verzögerung (siehe Latenz-Leitlinie in `tech.md`). Baut auf der vorhandenen Anzeige
-  auf, erfordert Blocklogik und einen schnellen Stop-Pfad.
+  minimale Verzögerung (siehe Latenz-Leitlinie in `tech.md`). Baut auf dem Anlagenmodell
+  (Blöcke, Markierungen, Blockzustand) auf, erfordert Verriegelung und einen schnellen
+  Stop-Pfad.
 - **Merker Anzeige:** Melder werden über die stabile **NId** gruppiert (Moduladresse `addr`
   kommt real oft als `0`); Eingänge sind in der UI 1-basiert (`Port+1`), intern 0-basiert.
 - **Merker Broadcast-Empfang:** Die Z21 sendet CAN-Broadcasts an den registrierten Client.
@@ -63,10 +88,20 @@ Die **Anzeige** der Belegtmeldung ist erledigt und live gegen den realen 10808 v
 - **macOS Local Network Privacy:** UDP ins LAN scheitert mit „No route to host", wenn die
   ausführende App (z. B. iTerm) die Berechtigung „Lokales Netzwerk" nicht (mehr) hat. Lösung:
   in den Systemeinstellungen aus-/einschalten + App neu starten.
+- **Anlagenmodell-UI, Melder-Zuordnung:** Die Melder-`nid` wird im Block-Editor aktuell
+  **dezimal** eingegeben, in der Melderanzeige aber **hex** (`0xD764`) dargestellt. Für Stufe 1
+  ok; bessere UX später = Auswahl aus den live bekannten Meldern (Dropdown mit Hex-Label)
+  statt freier nid-Eingabe.
+- **`ruff format` nicht in CI:** Die CI prüft nur `ruff check`, nicht `ruff format --check`.
+  5 bestehende Dateien (`api/app.py` vor Stufe-1-Änderung, `z21/messages.py`, `z21/protocol.py`,
+  `tests/test_client.py`, `tests/test_messages.py`) sind format-abweichend. Hygiene-Thema:
+  einmal `ruff format` über das Repo + CI um Format-Check ergänzen.
 
 ## Mögliche Themen danach
 
-- Gleisplan-Bereiche mit Inhalt füllen (Anzeige + Modellierung).
+- **Grafisches Gleisbild** für die Platzhalter `/track-plan` (Anzeige) und `/track-edit`
+  (Modellierung). Die listen-/schemaartige Modellierung liegt bereits unter `/layout` („Anlage");
+  diese Bereiche bleiben für die spätere gezeichnete Darstellung reserviert.
 - Weichen-Komfort: Benennung, mehrere Weichen, Adresszählung ab 1.
 - RailCom zur Lok-Identifikation (zusammen mit Belegtmeldung).
 - uvicorn-Access-Log konfigurieren.
