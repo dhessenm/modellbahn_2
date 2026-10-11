@@ -82,3 +82,45 @@ def test_incoming_turnout_info_updates_state() -> None:
     ctrl = LocoController(transport=tx)
     ctrl.on_raw(0x40, bytes([0x43, 0x00, 0x05, 0b10]))  # Adresse 5, Position 1
     assert ctrl.state.turnout(5).position == 1
+
+
+def _can_detector_payload(
+    nid: int, addr: int, port: int, typ: int, value1: int, value2: int = 0
+) -> bytes:
+    return (
+        nid.to_bytes(2, "little")
+        + addr.to_bytes(2, "little")
+        + bytes([port, typ])
+        + value1.to_bytes(2, "little")
+        + value2.to_bytes(2, "little")
+    )
+
+
+def test_incoming_detector_occupancy_updates_state_and_connects() -> None:
+    tx = FakeTransport()
+    ctrl = LocoController(transport=tx)
+    # Typ 0x01, Value1 0x1100 = besetzt mit Spannung
+    ctrl.on_raw(0xC4, _can_detector_payload(0xD764, 0, 0, 0x01, 0x1100))
+    assert ctrl.state.connected is True
+    detector = ctrl.state.detector(0xD764, 0)
+    assert detector.occupied is True
+    assert detector.with_power is True
+
+
+def test_incoming_detector_locos_first_block_replaces_list() -> None:
+    tx = FakeTransport()
+    ctrl = LocoController(transport=tx)
+    # Erste 0x11-Meldung: zwei Adressen
+    ctrl.on_raw(0xC4, _can_detector_payload(0xD764, 0, 0, 0x11, 0x8003, 0xC02A))
+    detector = ctrl.state.detector(0xD764, 0)
+    assert detector.locos == [(3, "forward"), (42, "backward")]
+    # Folgemeldung Typ 0x11 ersetzt (haengt nicht an)
+    ctrl.on_raw(0xC4, _can_detector_payload(0xD764, 0, 0, 0x11, 0x8007))
+    assert detector.locos == [(7, "forward")]
+
+
+def test_request_detectors_sends_query() -> None:
+    tx = FakeTransport()
+    ctrl = LocoController(transport=tx)
+    ctrl.request_detectors()
+    assert tx.sent == [protocol.build_get_can_detectors()]

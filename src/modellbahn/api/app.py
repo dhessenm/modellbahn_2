@@ -21,6 +21,9 @@ from fastapi.responses import StreamingResponse
 
 from modellbahn.api.events import EventBroker
 from modellbahn.api.schemas import (
+    DetectorInputResponse,
+    DetectorLocoResponse,
+    DetectorsResponse,
     DriveRequest,
     FunctionRequest,
     LocoStateResponse,
@@ -31,9 +34,39 @@ from modellbahn.api.schemas import (
 )
 from modellbahn.config import Settings, get_settings
 from modellbahn.domain.controller import LocoController
-from modellbahn.domain.state import LayoutState
+from modellbahn.domain.state import DetectorInput, LayoutState
 from modellbahn.logging_setup import configure_logging
 from modellbahn.z21.client import Z21Transport, Z21UdpClient
+
+
+def _detector_status_text(d: DetectorInput) -> str:
+    """Leitet den menschenlesbaren deutschen Belegtstatus aus den Flags ab.
+
+    Zentral in der api-Schicht, damit REST (und darueber die UI) genau einen
+    Text verwenden; das domain-Modell bleibt reiner Zustand.
+    """
+    if d.overload:
+        return f"besetzt (Ueberlast {d.overload_level})"
+    besetzt = "besetzt" if d.occupied else "frei"
+    spannung = "mit Spannung" if d.with_power else "ohne Spannung"
+    return f"{besetzt} ({spannung})"
+
+
+def _detector_to_response(d: DetectorInput) -> DetectorInputResponse:
+    return DetectorInputResponse(
+        nid=d.nid,
+        addr=d.addr,
+        port=d.port,
+        occupied=d.occupied,
+        with_power=d.with_power,
+        overload=d.overload,
+        overload_level=d.overload_level,
+        status_text=_detector_status_text(d),
+        locos=[
+            DetectorLocoResponse(address=address, direction=direction)
+            for address, direction in d.locos
+        ],
+    )
 
 
 @asynccontextmanager
@@ -180,6 +213,32 @@ def _register_routes(
             controller.deactivate_turnout(address, req.position)
 
         asyncio.create_task(deactivate_later())
+        return Response(status_code=204)
+
+    @app.get("/api/detectors", response_model=DetectorsResponse)
+    def get_detectors() -> DetectorsResponse:
+        """Liefert alle bekannten CAN-Belegtmelder-Eingaenge (Single Source of Truth).
+
+        Sortiert nach (addr, port) mit nid als stabilem Tiebreaker, damit die
+        Reihenfolge auch bei addr=0 (Moduladresse nicht gesetzt) deterministisch
+        bleibt.
+        """
+        detectors = sorted(
+            controller.state.detectors.values(),
+            key=lambda d: (d.addr, d.nid, d.port),
+        )
+        return DetectorsResponse(
+            detectors=[_detector_to_response(d) for d in detectors]
+        )
+
+    @app.post("/api/detectors/refresh", status_code=204)
+    def refresh_detectors() -> Response:
+        """Fordert den Belegtstatus aller CAN-Melder einmalig an (rein lesend).
+
+        Die Antworten treffen asynchron als LAN_CAN_DETECTOR-Meldungen ein und
+        aktualisieren den Zustand; der Client erfaehrt dies ueber den SSE-Push.
+        """
+        controller.request_detectors()
         return Response(status_code=204)
 
     @app.get("/api/events")

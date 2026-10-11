@@ -23,3 +23,21 @@ export interface TurnoutState {
   address: number
   position: number | null // 0, 1 oder null (noch nicht geschaltet)
 }
+
+// CAN-Belegtmelder (Roco Z21 Detector 10808), passend zu schemas.py.
+export interface DetectorLoco {
+  address: number
+  direction: 'forward' | 'backward' | 'unknown'
+}
+
+export interface DetectorInput {
+  nid: number // unveraenderbare CAN-NetworkID (stabile Melder-Identitaet)
+  addr: number // konfigurierbare Moduladresse (nur Anzeigeinfo, ggf. 0)
+  port: number // Eingang 0..7 (intern 0-basiert; die UI zeigt Port+1 an)
+  occupied: boolean
+  with_power: boolean
+  overload: boolean
+  overload_level: number
+  status_text: string
+  locos: DetectorLoco[]
+}

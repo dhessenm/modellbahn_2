@@ -12,6 +12,7 @@ from modellbahn.z21.protocol import HEADER_LAN_X
 
 # Z21-LAN-Header
 HEADER_SYSTEMSTATE = 0x84  # LAN_SYSTEMSTATE_DATACHANGED
+HEADER_CAN_DETECTOR = 0xC4  # LAN_CAN_DETECTOR (Roco Z21 Detector 10808)
 
 # X-Header empfangener X-Bus-Meldungen
 XHEADER_LOCO_INFO = 0xEF
@@ -70,6 +71,49 @@ class TurnoutInfo:
     position: int | None
 
 
+@dataclass
+class DetectorLoco:
+    """Eine am Belegtmelder-Eingang per RailCom erkannte Lok.
+
+    direction: "forward", "backward" oder "unknown" (aus den oberen 2 Bits).
+    """
+
+    address: int
+    direction: str
+
+
+@dataclass
+class DetectorOccupancy:
+    """Belegtstatus eines CAN-Belegtmelder-Eingangs (LAN_CAN_DETECTOR, Typ 0x01).
+
+    Schluessel ist (nid, port): nid = unveraenderbare CAN-NetworkID des Moduls,
+    port = Eingang 0..7. addr = konfigurierbare Moduladresse (nur Anzeigeinfo).
+    """
+
+    nid: int
+    addr: int
+    port: int
+    occupied: bool
+    with_power: bool
+    overload: bool
+    overload_level: int = 0
+
+
+@dataclass
+class DetectorLocos:
+    """RailCom-Lokadressen eines Belegtmelder-Eingangs (Typ 0x11..0x1F).
+
+    first_block = True markiert den ersten Block (Typ 0x11), der eine neue
+    Liste beginnt; 0x12..0x1F haengen weitere Paare an.
+    """
+
+    nid: int
+    addr: int
+    port: int
+    locos: list[DetectorLoco]
+    first_block: bool
+
+
 def _decode_address(adr_msb: int, adr_lsb: int) -> int:
     return ((adr_msb & 0x3F) << 8) + adr_lsb
 
@@ -109,10 +153,75 @@ def _decode_functions(data: bytes) -> dict[int, bool]:
     return functions
 
 
+def _decode_detector_loco(word: int) -> DetectorLoco:
+    """Dekodiert einen 16-bit RailCom-Wert in (Adresse, Richtung).
+
+    Bits 15..14 = Richtung (00 unbekannt, 10 vorwaerts, 11 rueckwaerts),
+    Bits 13..0 = Lokadresse.
+    """
+    address = word & 0x3FFF
+    direction = {0b00: "unknown", 0b10: "forward", 0b11: "backward"}.get(
+        word >> 14, "unknown"
+    )
+    return DetectorLoco(address=address, direction=direction)
+
+
+def _parse_can_detector(
+    data: bytes,
+) -> DetectorOccupancy | DetectorLocos | None:
+    """Dekodiert einen LAN_CAN_DETECTOR-Datensatz (Header 0xC4).
+
+    Layout (little endian): NId(16) Addr(16) Port(8) Typ(8) Value1(16) Value2(16).
+    """
+    if len(data) < 8:
+        return None
+    nid = int.from_bytes(data[0:2], "little")
+    addr = int.from_bytes(data[2:4], "little")
+    port = data[4]
+    typ = data[5]
+    value1 = int.from_bytes(data[6:8], "little")
+    value2 = int.from_bytes(data[8:10], "little") if len(data) >= 10 else 0
+
+    if typ == 0x01:
+        occupied = value1 >= 0x1000
+        overload = (value1 >> 8) == 0x12
+        overload_level = (value1 & 0xFF) if overload else 0
+        # Bei Ueberlast liegt immer Spannung an; sonst steuert Bit 0x0100.
+        with_power = overload or bool(value1 & 0x0100)
+        return DetectorOccupancy(
+            nid=nid,
+            addr=addr,
+            port=port,
+            occupied=occupied,
+            with_power=with_power,
+            overload=overload,
+            overload_level=overload_level,
+        )
+
+    if 0x11 <= typ <= 0x1F:
+        locos: list[DetectorLoco] = []
+        for word in (value1, value2):
+            if word == 0x0000:  # Adresse 0 = Listenende
+                break
+            locos.append(_decode_detector_loco(word))
+        return DetectorLocos(
+            nid=nid,
+            addr=addr,
+            port=port,
+            locos=locos,
+            first_block=(typ == 0x11),
+        )
+
+    return None
+
+
 def parse_message(
     header: int, data: bytes
-) -> LocoInfo | TurnoutInfo | TrackPower | SystemState | None:
+) -> LocoInfo | TurnoutInfo | TrackPower | SystemState | DetectorOccupancy | DetectorLocos | None:
     """Wertet einen empfangenen Datensatz aus; None bei irrelevanten Meldungen."""
+    if header == HEADER_CAN_DETECTOR:
+        return _parse_can_detector(data)
+
     if header == HEADER_SYSTEMSTATE and len(data) >= 13:
         # SystemState-Layout (16 Byte, little endian): CentralState an Offset 12.
         # 0..1 MainCurrent, 2..3 ProgCurrent, 4..5 FilteredMainCurrent,

@@ -124,13 +124,21 @@ damit künftige Funktionen ohne Umbau Platz finden:
 - Navigation zwischen den Bereichen über ein Menü in der App-Shell; die Verbindungsanzeige ist
   global sichtbar.
 
+Bereits umgesetzt (über den ursprünglichen MVP hinaus):
+
+- **Gleisbelegtmeldung — Anzeige:** Auslesen der Roco **Z21 Detector (10808)** CAN-Belegtmelder
+  (`LAN_CAN_DETECTOR`, Header `0xC4`) und Darstellung in einer eigenen Web-UI-Seite
+  („Belegtmelder"): pro Eingang eine Zeile mit runder roter LED (an = belegt), textuellem
+  Belegtstatus und — sofern per RailCom erkannt — den Lokadressen samt Fahrtrichtung. Nur
+  **Anzeige**, keine Automatik/Stop-Logik. Details in `z21-protokoll.md`.
+
 Bewusst **noch nicht** umgesetzt (für spätere Versionen):
 
 - Stellwerk/Gleisbild, Blöcke, automatische Zugfahrten.
-- **Gleisbelegtmeldung** über den Roco **Z21 Detector (10808)**, per **CAN-Bus** an die
-  Zentrale angebunden.
-- **RailCom** zur Identifikation von Loks (welche Lok belegt welchen Abschnitt), in Verbindung
-  mit der Belegtmeldung.
+- **Automatik Belegtmeldung → Stop** (punktgenaues Halten, latenzkritisch) — weiterhin offen.
+- **RailCom** liefert bereits die Lokadressen in der Belegtmeldung; eine darauf aufbauende
+  Zuordnung „welche Lok belegt welchen Block" (zusammen mit Blocklogik) folgt später. Ohne
+  RailCom meldet der Detector nur belegt/frei — „besetzt ohne Lokadresse" ist normal.
 - Mehrfachtraktion, Decoderprogrammierung (CV).
 - Verwaltung mehrerer Loks gleichzeitig / Lok-Bibliothek.
 

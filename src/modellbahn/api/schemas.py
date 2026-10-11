@@ -35,6 +35,27 @@ class TurnoutStateResponse(BaseModel):
     position: int | None  # 0, 1 oder null (noch nicht geschaltet)
 
 
+class DetectorLocoResponse(BaseModel):
+    address: int
+    direction: str  # "forward", "backward" oder "unknown"
+
+
+class DetectorInputResponse(BaseModel):
+    nid: int  # unveraenderbare CAN-NetworkID (stabile Melder-Identitaet)
+    addr: int  # konfigurierbare Moduladresse (nur Anzeigeinfo, ggf. 0)
+    port: int  # Eingang 0..7 (intern 0-basiert; die UI zeigt Port+1 an)
+    occupied: bool
+    with_power: bool
+    overload: bool
+    overload_level: int
+    status_text: str  # menschenlesbar deutsch, in der api-Schicht abgeleitet
+    locos: list[DetectorLocoResponse]
+
+
+class DetectorsResponse(BaseModel):
+    detectors: list[DetectorInputResponse]
+
+
 class SystemStatusResponse(BaseModel):
     connected: bool
     track_power_on: bool

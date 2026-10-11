@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from modellbahn.z21.client import Z21UdpClient
 from modellbahn.z21.protocol import (
+    BROADCAST_CAN_DETECTOR,
     build_dataset,
+    build_get_can_detectors,
     build_get_status,
     build_get_turnout_info,
     build_loco_drive,
@@ -79,6 +82,16 @@ def test_build_set_turnout_bits() -> None:
 def test_build_get_turnout_info() -> None:
     ds = build_get_turnout_info(5)
     assert ds[4] == 0x43 and ds[5] == 0x00 and ds[6] == 0x05
+
+
+def test_build_get_can_detectors_full_dataset() -> None:
+    # Header 0xC4, Typ 0x00, NId 0xD000 (little endian) -> 07 00 C4 00 00 00 D0
+    assert build_get_can_detectors() == bytes([0x07, 0x00, 0xC4, 0x00, 0x00, 0x00, 0xD0])
+
+
+def test_broadcast_can_detector_flag_and_in_defaults() -> None:
+    assert BROADCAST_CAN_DETECTOR == 0x00080000
+    assert Z21UdpClient.DEFAULT_BROADCAST_FLAGS & BROADCAST_CAN_DETECTOR
 
 
 def test_parse_datasets_splits_combined_payload() -> None:

@@ -1,7 +1,7 @@
 // REST-Client und SSE-Abonnement fuer das Backend.
 // Die Web-UI spricht ausschliesslich ueber diese Schnittstelle mit dem Backend.
 
-import type { LocoState, SystemStatus, TurnoutState } from './types'
+import type { DetectorInput, LocoState, SystemStatus, TurnoutState } from './types'
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
   const resp = await fetch(path, init)
@@ -68,6 +68,15 @@ export const api = {
       ...jsonBody({ position }),
       method: 'PUT',
     })
+  },
+
+  async getDetectors(): Promise<DetectorInput[]> {
+    const resp = await requestJson<{ detectors: DetectorInput[] }>('/api/detectors')
+    return resp.detectors
+  },
+
+  async refreshDetectors(): Promise<void> {
+    await request('/api/detectors/refresh', { method: 'POST' })
   },
 
   // SSE: ruft onChange bei jeder Zustandsaenderung im Backend auf.

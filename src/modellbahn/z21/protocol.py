@@ -89,9 +89,11 @@ def build_logoff() -> bytes:
 #   0x00000001 = Fahren/Schalten-Broadcasts (u. a. LAN_X_LOCO_INFO, Track-Power)
 #   0x00000100 = Aenderungen des Z21-Systemzustands (LAN_SYSTEMSTATE_DATACHANGED)
 #   0x00010000 = LAN_X_LOCO_INFO auch ohne vorheriges Abo pro Lok (ab FW 1.20)
+#   0x00080000 = asynchrone CAN-Belegtmeldungen (LAN_CAN_DETECTOR, Roco 10808)
 BROADCAST_DRIVE_SWITCH = 0x00000001
 BROADCAST_SYSTEMSTATE = 0x00000100
 BROADCAST_LOCO_INFO_ALL = 0x00010000
+BROADCAST_CAN_DETECTOR = 0x00080000
 
 
 def build_set_broadcastflags(flags: int) -> bytes:
@@ -174,6 +176,21 @@ def build_get_turnout_info(address: int) -> bytes:
     """LAN_X_GET_TURNOUT_INFO (X-Header 0x43, dann Adresse). Rein lesend."""
     msb, lsb = encode_turnout_address(address)
     return build_xbus(0x43, bytes([msb, lsb]))
+
+
+# --- CAN-Belegtmelder (Roco Z21 Detector 10808) ----------------------------
+
+def build_get_can_detectors(network_id: int = 0xD000) -> bytes:
+    """LAN_CAN_DETECTOR Request (Header 0xC4): fragt den Belegtstatus ab.
+
+    Data = Typ(8)=0x00 | CAN-NetworkID(16, little endian). Die NetworkID
+    0xD000 adressiert *alle* CAN-Belegtmelder. Dies ist KEIN X-Bus-Befehl
+    (kein Header 0x40, kein XOR-Pruefbyte), sondern ein eigener Z21-LAN-Header
+    analog zu LAN_SYSTEMSTATE_GETDATA.
+
+    Voller Datensatz (NetworkID 0xD000): 07 00 C4 00 00 00 D0.
+    """
+    return build_dataset(0xC4, bytes([0x00]) + network_id.to_bytes(2, "little"))
 
 
 # --- Dekodierung von Empfangsdaten -----------------------------------------

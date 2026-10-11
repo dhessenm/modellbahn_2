@@ -6,10 +6,11 @@
 
 import { readonly, ref } from 'vue'
 import { api } from '@/api/client'
-import type { LocoState, SystemStatus } from '@/api/types'
+import type { DetectorInput, LocoState, SystemStatus } from '@/api/types'
 
 const status = ref<SystemStatus | null>(null)
 const loco = ref<LocoState | null>(null)
+const detectors = ref<DetectorInput[]>([])
 const activeAddress = ref<number | null>(null)
 const error = ref<string | null>(null)
 
@@ -34,8 +35,17 @@ async function refreshLoco(): Promise<void> {
   }
 }
 
+async function refreshDetectors(): Promise<void> {
+  try {
+    detectors.value = await api.getDetectors()
+  } catch (e) {
+    error.value = (e as Error).message
+    console.error('[store] detectors-Fehler', e)
+  }
+}
+
 async function refreshAll(): Promise<void> {
-  await Promise.all([refreshStatus(), refreshLoco()])
+  await Promise.all([refreshStatus(), refreshLoco(), refreshDetectors()])
 }
 
 export function useLayoutStore() {
@@ -87,9 +97,18 @@ export function useLayoutStore() {
     await refreshLoco()
   }
 
+  async function requestDetectors(): Promise<void> {
+    // Einmalige Abfrage anstossen; die Antworten treffen asynchron ein und
+    // werden ueber den SSE-'changed'-Pfad nachgeladen. Zusaetzlich sofort
+    // nachladen, damit der aktuelle Stand ohne Wartezeit sichtbar ist.
+    await api.refreshDetectors()
+    await refreshDetectors()
+  }
+
   return {
     status: readonly(status),
     loco: readonly(loco),
+    detectors: readonly(detectors),
     activeAddress: readonly(activeAddress),
     error: readonly(error),
     start,
@@ -98,5 +117,6 @@ export function useLayoutStore() {
     setTrackPower,
     drive,
     setFunction,
+    requestDetectors,
   }
 }

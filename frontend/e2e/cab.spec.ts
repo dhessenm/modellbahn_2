@@ -68,6 +68,56 @@ async function mockBackend(page: Page): Promise<void> {
     }
   })
 
+  // Belegtmelder: zwei Eingaenge an einem Melder (nid 0xD764) -- einer frei,
+  // einer besetzt mit zwei Lokadressen; dazu ein Melder mit Ueberlast.
+  await page.route('**/api/detectors/refresh', (route) =>
+    route.fulfill({ status: 204, body: '' }),
+  )
+  await page.route('**/api/detectors', (route) =>
+    route.fulfill({
+      json: {
+        detectors: [
+          {
+            nid: 0xd764,
+            addr: 0,
+            port: 0,
+            occupied: true,
+            with_power: true,
+            overload: false,
+            overload_level: 0,
+            status_text: 'besetzt (mit Spannung)',
+            locos: [
+              { address: 3, direction: 'forward' },
+              { address: 42, direction: 'backward' },
+            ],
+          },
+          {
+            nid: 0xd764,
+            addr: 0,
+            port: 1,
+            occupied: false,
+            with_power: true,
+            overload: false,
+            overload_level: 0,
+            status_text: 'frei (mit Spannung)',
+            locos: [],
+          },
+          {
+            nid: 0xd765,
+            addr: 0,
+            port: 0,
+            occupied: true,
+            with_power: true,
+            overload: true,
+            overload_level: 2,
+            status_text: 'besetzt (Ueberlast 2)',
+            locos: [],
+          },
+        ],
+      },
+    }),
+  )
+
   // SSE-Endpunkt: offener Stream ohne Events (verhindert Netzwerk-Fehler).
   await page.route('**/api/events', (route) =>
     route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: '' }),
@@ -130,4 +180,33 @@ test('Weichen: Adresse waehlen und Position schalten', async ({ page }) => {
   // Position 1 schalten -> Anzeige aktualisiert
   await page.getByRole('button', { name: 'Position 1' }).click()
   await expect(page.locator('.pos strong', { hasText: /^1$/ })).toBeVisible()
+})
+
+test('Belegtmelder: Status, LED und Lokadressen werden angezeigt', async ({ page }) => {
+  await mockBackend(page)
+  await page.goto('/')
+
+  // Über die Navigation zu den Belegtmeldern (exakter Link-Name)
+  await page.getByRole('link', { name: 'Belegtmelder', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Belegtmelder' })).toBeVisible()
+
+  // Drei Eingaenge insgesamt (zwei Melder)
+  const rows = page.getByTestId('detector-row')
+  await expect(rows).toHaveCount(3)
+
+  // Erster Eingang (besetzt): LED an, Lokadressen mit Richtung
+  const first = rows.nth(0)
+  await expect(first.getByTestId('detector-led')).toHaveClass(/on/)
+  await expect(first.getByTestId('detector-status')).toHaveText('besetzt (mit Spannung)')
+  await expect(first.getByTestId('detector-locos')).toContainText('3')
+  await expect(first.getByTestId('detector-locos')).toContainText('42')
+
+  // Zweiter Eingang (frei): LED aus
+  await expect(rows.nth(1).getByTestId('detector-led')).toHaveClass(/off/)
+
+  // Dritter Eingang: Ueberlast hervorgehoben
+  await expect(rows.nth(2).getByTestId('detector-status')).toHaveClass(/overload/)
+
+  // Aktualisieren-Button klickbar
+  await page.getByRole('button', { name: 'Aktualisieren' }).click()
 })

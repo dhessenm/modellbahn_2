@@ -87,3 +87,55 @@ Auslesen von Rückmeldern sowie zum Lesen/Schreiben von Decoder-CVs.
   Z21 Detector 10808, ggf. RailCom) — nicht über den Schaltbefehl selbst.
 - Bleibt ein Befehl ungültig, antwortet die Z21 mit `LAN_X_UNKNOWN_COMMAND`; dessen Ausbleiben
   ist nur ein schwaches Indiz für Erfolg (UDP ist zudem verbindungslos).
+
+## Gleisbelegtmeldung: `LAN_CAN_DETECTOR` (Roco Z21 Detector 10808)
+
+> Kapitel 10/10.1 des Protokolls. Umgesetzt ist die **Anzeige** des Belegtstatus (siehe
+> `product.md`). Der Detector 10808 ist per **CAN-Bus** an die Z21 angebunden.
+
+- **Header `0xC4`** — eigener Z21-LAN-Header, **kein** X-Bus-Befehl (also **kein** Header
+  `0x40` und **kein** XOR-Prüfbyte). Gebaut wie `LAN_SYSTEMSTATE` über
+  `build_dataset(0xC4, data)`.
+- **Abfrage (Request):** `Data = Typ(8 Bit)=0x00 | CAN-NetworkID(16 Bit, little endian)`. Die
+  NetworkID `0xD000` adressiert **alle** CAN-Belegtmelder. Voller Datensatz (alle Melder):
+  `07 00 C4 00 00 00 D0`.
+- **Antwort/Broadcast:** Header `0xC4`, `DataLen = 0x000E` (14). Datenstruktur (little endian):
+
+  ```
+  NId(16) | Addr(16) | Port(8) | Typ(8) | Value1(16) | Value2(16)
+    NId  : unveränderbare CAN-NetworkID (stabile Melder-Identität)
+    Addr : konfigurierbare Moduladresse (nur Anzeigeinfo)
+    Port : Eingang 0..7
+  ```
+
+  **Wichtig (an echter Hardware bestätigt):** `Addr` kommt oft als `0`, auch wenn am Gerät
+  eine Moduladresse eingestellt wurde. Deshalb den Melder über die **NId** identifizieren/
+  gruppieren, nicht über `Addr`. Interner Zustands-Schlüssel: `(nid, port)`. Der physische
+  „Eingang 1" am Gerät ist im Protokoll `Port = 0` (0-basiert) — in der UI wird daher `Port+1`
+  angezeigt (analog zur Weichen-Adresszählung).
+
+- **Typ `0x01` = Belegtstatus** (`Value1` maßgeblich):
+
+  | Value1 | Bedeutung                 | occupied | with_power | overload |
+  | ------ | ------------------------- | -------- | ---------- | -------- |
+  | 0x0000 | frei / ohne Spannung      | nein     | nein       | nein     |
+  | 0x0100 | frei / mit Spannung       | nein     | ja         | nein     |
+  | 0x1000 | besetzt / ohne Spannung   | ja       | nein       | nein     |
+  | 0x1100 | besetzt / mit Spannung    | ja       | ja         | nein     |
+  | 0x1201 | besetzt / Überlast 1      | ja       | ja         | ja (1)   |
+  | 0x1202 | besetzt / Überlast 2      | ja       | ja         | ja (2)   |
+  | 0x1203 | besetzt / Überlast 3      | ja       | ja         | ja (3)   |
+
+  Regel: `Value1 >= 0x1000` ⇒ besetzt; High-Byte `0x12` ⇒ Überlast (Level = Low-Byte);
+  `with_power = Überlast oder (Value1 & 0x0100) != 0`.
+
+- **Typ `0x11..0x1F` = RailCom-Lokadressen**, zwei Adressen pro Meldung (`Value1`, `Value2`).
+  Jeder 16-Bit-Wert: Bits 15..14 = Richtung (`00` unbekannt, `10` vorwärts, `11` rückwärts),
+  Bits 13..0 = Lokadresse. **Adresse 0 = Listenende** (restliche Werte ignorieren). `0x11`
+  beginnt eine neue Liste; `0x12..0x1F` hängen weitere Paare an.
+
+- **Broadcast-Flag:** `0x00080000` (`BROADCAST_CAN_DETECTOR`) in `LAN_SET_BROADCASTFLAGS`
+  setzen, damit CAN-Belegtmeldungen unaufgefordert eintreffen (ereignisgesteuert, kein Polling).
+
+- **Lokadressen nur mit RailCom:** Ohne RailCom meldet der Detector nur „besetzt/frei", aber
+  keine Lokadresse. **„besetzt ohne Lokadresse" ist daher normal** und kein Fehler.

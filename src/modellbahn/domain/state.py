@@ -39,6 +39,29 @@ class TurnoutState:
 
 
 @dataclass
+class DetectorInput:
+    """Zustand eines CAN-Belegtmelder-Eingangs (Roco Z21 Detector 10808).
+
+    Schluessel ist (nid, port): nid = unveraenderbare CAN-NetworkID des Moduls
+    (stabile Melder-Identitaet), port = Eingang 0..7. addr = konfigurierbare
+    Moduladresse, nur Anzeigeinfo (kann 0 sein, nicht zum Schluesseln nutzen).
+
+    locos haelt die per RailCom erkannten Loks als (address, direction)-Tupel
+    (domain-eigene, JSON-serialisierbare Darstellung; bewusst nicht die
+    messages-Dataclass importiert, um die Schichtentrennung zu wahren).
+    """
+
+    nid: int
+    port: int
+    addr: int = 0
+    occupied: bool = False
+    with_power: bool = False
+    overload: bool = False
+    overload_level: int = 0
+    locos: list[tuple[int, str]] = field(default_factory=list)
+
+
+@dataclass
 class LayoutState:
     """Gesamtzustand der Anlage fuer den MVP.
 
@@ -50,6 +73,7 @@ class LayoutState:
     system: SystemInfo = field(default_factory=SystemInfo)
     locos: dict[int, LocoState] = field(default_factory=dict)
     turnouts: dict[int, TurnoutState] = field(default_factory=dict)
+    detectors: dict[tuple[int, int], DetectorInput] = field(default_factory=dict)
 
     def loco(self, address: int) -> LocoState:
         """Liefert den Lok-Zustand, legt ihn bei Bedarf an."""
@@ -62,3 +86,15 @@ class LayoutState:
         if address not in self.turnouts:
             self.turnouts[address] = TurnoutState(address=address)
         return self.turnouts[address]
+
+    def detector(self, nid: int, port: int, addr: int = 0) -> DetectorInput:
+        """Liefert den Belegtmelder-Eingang (nid, port), legt ihn bei Bedarf an.
+
+        addr wird aktualisiert, wenn ein Wert != 0 mitgegeben wird (Anzeigeinfo).
+        """
+        key = (nid, port)
+        if key not in self.detectors:
+            self.detectors[key] = DetectorInput(nid=nid, port=port, addr=addr)
+        elif addr:
+            self.detectors[key].addr = addr
+        return self.detectors[key]

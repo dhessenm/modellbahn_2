@@ -59,14 +59,19 @@ Details siehe `z21-protokoll.md` und das Original `external_docs/z21-lan-protoko
   Decoder zwischenzeitlich stromlos). Nicht auf den gemeldeten Zustand verlassen und das Schalten
   "sparen"; lieber den Schaltbefehl idempotent erneut senden.
 
-### Spätere Hardware-Erweiterungen (nicht MVP)
+### Gleisbelegtmeldung (Hardware: Roco Z21 Detector 10808)
 
-Für das Scoping hier festgehalten, in der ersten Version aber nicht umgesetzt:
-
-- **Gleisbelegtmeldung:** Roco **Z21 Detector (10808)**, angebunden per **CAN-Bus** an die
-  Z21-Zentrale. Auswertung über die CAN-/Detector-Meldungen des Z21-Protokolls.
-- **RailCom:** zur **Identifikation von Loks** (welche Lok in welchem Abschnitt). Nutzung der
-  RailCom-Daten (`LAN_RAILCOM_*`) in Verbindung mit der Belegtmeldung.
+- **Anzeige umgesetzt:** Roco **Z21 Detector (10808)**, per **CAN-Bus** an die Z21 angebunden.
+  Auslesen über `LAN_CAN_DETECTOR` (Header `0xC4`, **kein** X-Bus/XOR), Broadcast-Flag
+  `0x00080000` (`BROADCAST_CAN_DETECTOR`). Dekodierung in `z21/messages.py` →
+  Zustand in `domain/state.py` (`DetectorInput`, Schlüssel `(nid, port)`) → REST
+  `GET /api/detectors` + `POST /api/detectors/refresh` → SSE-Push → UI-Seite „Belegtmelder".
+  Byte-Layout und Wertetabellen in `z21-protokoll.md`.
+- **Weiterhin offen:** latenzkritische **Automatik Belegtmeldung → Stop** (punktgenaues
+  Halten) — bewusst noch nicht umgesetzt (siehe Latenz-Leitlinie oben).
+- **Lokadress-Erkennung nur mit RailCom:** Die Lokadressen in der Belegtmeldung (`Typ 0x11..`)
+  liefert nur RailCom. Ohne RailCom meldet der Detector lediglich belegt/frei — „besetzt ohne
+  Lokadresse" ist normal.
 
 ## Noch zu wählen
 

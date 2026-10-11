@@ -3,12 +3,27 @@
 from __future__ import annotations
 
 from modellbahn.z21.messages import (
+    DetectorLocos,
+    DetectorOccupancy,
     LocoInfo,
     SystemState,
     TrackPower,
     TurnoutInfo,
     parse_message,
 )
+
+
+def _can_detector_payload(
+    nid: int, addr: int, port: int, typ: int, value1: int, value2: int = 0
+) -> bytes:
+    """Baut den Data-Teil eines LAN_CAN_DETECTOR-Datensatzes (little endian)."""
+    return (
+        nid.to_bytes(2, "little")
+        + addr.to_bytes(2, "little")
+        + bytes([port, typ])
+        + value1.to_bytes(2, "little")
+        + value2.to_bytes(2, "little")
+    )
 
 
 def _loco_info_payload(adr: int, db3: int, db4: int) -> bytes:
@@ -94,3 +109,99 @@ def test_parse_turnout_info_positions() -> None:
 def test_parse_unknown_returns_none() -> None:
     assert parse_message(0x40, bytes([0x99, 0x00])) is None
     assert parse_message(0x40, b"") is None
+
+
+# --- CAN-Belegtmelder (LAN_CAN_DETECTOR, Header 0xC4) -----------------------
+
+
+def test_parse_can_detector_occupancy_all_value1_cases() -> None:
+    cases = {
+        0x0000: (False, False, False, 0),  # frei / ohne Spannung
+        0x0100: (False, True, False, 0),   # frei / mit Spannung
+        0x1000: (True, False, False, 0),   # besetzt / ohne Spannung
+        0x1100: (True, True, False, 0),    # besetzt / mit Spannung
+        0x1201: (True, True, True, 1),     # besetzt / Ueberlast 1
+        0x1202: (True, True, True, 2),     # besetzt / Ueberlast 2
+        0x1203: (True, True, True, 3),     # besetzt / Ueberlast 3
+    }
+    for value1, (occupied, with_power, overload, level) in cases.items():
+        data = _can_detector_payload(0xD764, 0, 0, 0x01, value1)
+        msg = parse_message(0xC4, data)
+        assert isinstance(msg, DetectorOccupancy), hex(value1)
+        assert msg.occupied is occupied, hex(value1)
+        assert msg.with_power is with_power, hex(value1)
+        assert msg.overload is overload, hex(value1)
+        assert msg.overload_level == level, hex(value1)
+
+
+def test_parse_can_detector_occupancy_header_fields() -> None:
+    data = _can_detector_payload(0xD764, 1, 3, 0x01, 0x1100)
+    msg = parse_message(0xC4, data)
+    assert isinstance(msg, DetectorOccupancy)
+    assert msg.nid == 0xD764
+    assert msg.addr == 1
+    assert msg.port == 3
+
+
+def test_parse_can_detector_locos_two_addresses_with_direction() -> None:
+    # Value1 = vorwaerts Adresse 3 = (0b10<<14)|3 = 0x8003
+    # Value2 = rueckwaerts Adresse 42 = (0b11<<14)|42 = 0xC02A
+    data = _can_detector_payload(0xD764, 0, 0, 0x11, 0x8003, 0xC02A)
+    msg = parse_message(0xC4, data)
+    assert isinstance(msg, DetectorLocos)
+    assert msg.first_block is True
+    assert len(msg.locos) == 2
+    assert msg.locos[0].address == 3 and msg.locos[0].direction == "forward"
+    assert msg.locos[1].address == 42 and msg.locos[1].direction == "backward"
+
+
+def test_parse_can_detector_locos_zero_ends_list() -> None:
+    # Value2 = 0 beendet die Liste nach der ersten Adresse.
+    data = _can_detector_payload(0xD764, 0, 0, 0x11, 0x8003, 0x0000)
+    msg = parse_message(0xC4, data)
+    assert isinstance(msg, DetectorLocos)
+    assert len(msg.locos) == 1
+    assert msg.locos[0].address == 3
+
+
+def test_parse_can_detector_locos_first_block_flag() -> None:
+    first = parse_message(0xC4, _can_detector_payload(0xD764, 0, 0, 0x11, 0x8003))
+    further = parse_message(0xC4, _can_detector_payload(0xD764, 0, 0, 0x12, 0x8004))
+    assert isinstance(first, DetectorLocos) and first.first_block is True
+    assert isinstance(further, DetectorLocos) and further.first_block is False
+
+
+# --- Verifizierte echte Bytes aus einem Live-Test (echte Z21 + 10808) -------
+# Nutzer: Moduladresse auf 1 gestellt, Eingang 1 belegt. Addr kommt als 0
+# (bestaetigt (nid, port) als Schluessel); Port 0 = physischer Eingang 1.
+
+
+def test_parse_can_detector_real_occupied_input1() -> None:
+    data = bytes.fromhex("64 d7 00 00 00 01 00 11 00 00".replace(" ", ""))
+    msg = parse_message(0xC4, data)
+    assert isinstance(msg, DetectorOccupancy)
+    assert msg.nid == 0xD764
+    assert msg.addr == 0
+    assert msg.port == 0
+    assert msg.occupied is True
+    assert msg.with_power is True
+    assert msg.overload is False
+
+
+def test_parse_can_detector_real_free_input2() -> None:
+    data = bytes.fromhex("64 d7 00 00 01 01 00 01 00 00".replace(" ", ""))
+    msg = parse_message(0xC4, data)
+    assert isinstance(msg, DetectorOccupancy)
+    assert msg.port == 1
+    assert msg.occupied is False
+    assert msg.with_power is True
+
+
+def test_parse_can_detector_real_loco_address_backward() -> None:
+    data = bytes.fromhex("64 d7 00 00 00 11 03 c0 00 00".replace(" ", ""))
+    msg = parse_message(0xC4, data)
+    assert isinstance(msg, DetectorLocos)
+    assert msg.port == 0
+    assert len(msg.locos) == 1
+    assert msg.locos[0].address == 3
+    assert msg.locos[0].direction == "backward"

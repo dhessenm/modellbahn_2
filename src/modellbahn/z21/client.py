@@ -56,11 +56,13 @@ class Z21UdpClient:
     on_raw(header, data) wird fuer jeden empfangenen Datensatz aufgerufen.
     """
 
-    #: Standard-Broadcast-Flags: Fahren/Schalten + Systemzustand + Lok-Info ohne Abo.
+    #: Standard-Broadcast-Flags: Fahren/Schalten + Systemzustand + Lok-Info ohne
+    #: Abo + CAN-Belegtmeldungen (Roco 10808).
     DEFAULT_BROADCAST_FLAGS = (
         protocol.BROADCAST_DRIVE_SWITCH
         | protocol.BROADCAST_SYSTEMSTATE
         | protocol.BROADCAST_LOCO_INFO_ALL
+        | protocol.BROADCAST_CAN_DETECTOR
     )
 
     def __init__(
@@ -125,6 +127,9 @@ class Z21UdpClient:
         self.send(protocol.build_set_broadcastflags(self._broadcast_flags))
         self.send(protocol.build_get_status())
         self.send(protocol.build_systemstate_getdata())
+        # Einmalige Initial-Abfrage des CAN-Belegtstatus (ereignisgesteuert
+        # kommen danach Broadcasts; dies ist kein periodisches Polling).
+        self.send(protocol.build_get_can_detectors())
 
     async def _handshake_loop(self) -> None:
         """Wiederholt die Init-Pakete, bis eine Antwort kommt (max. ~5 s)."""

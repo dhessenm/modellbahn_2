@@ -20,6 +20,11 @@ const router = createRouter({
       component: () => import('../views/TurnoutView.vue'),
     },
     {
+      path: '/detectors',
+      name: 'detectors',
+      component: () => import('../views/DetectorView.vue'),
+    },
+    {
       path: '/track-plan',
       name: 'track-plan',
       component: () => import('../views/TrackPlanView.vue'),

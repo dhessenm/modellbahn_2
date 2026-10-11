@@ -65,6 +65,21 @@ class LocoController:
             self.state.system.track_voltage_mv = message.track_voltage_mv
         elif isinstance(message, messages.TurnoutInfo):
             self.state.turnout(message.address).position = message.position
+        elif isinstance(message, messages.DetectorOccupancy):
+            detector = self.state.detector(message.nid, message.port, message.addr)
+            detector.occupied = message.occupied
+            detector.with_power = message.with_power
+            detector.overload = message.overload
+            detector.overload_level = message.overload_level
+        elif isinstance(message, messages.DetectorLocos):
+            detector = self.state.detector(message.nid, message.port, message.addr)
+            entries = [(loco.address, loco.direction) for loco in message.locos]
+            if message.first_block:
+                # 0x11 beginnt eine neue Liste.
+                detector.locos = entries
+            else:
+                # 0x12..0x1F haengen weitere Paare an.
+                detector.locos.extend(entries)
         self._notify()
 
     # --- ausgehende Kommandos ------------------------------------------
@@ -115,3 +130,7 @@ class LocoController:
     def request_loco_info(self, address: int) -> None:
         """Fordert den aktuellen Lok-Zustand bei der Zentrale an (rein lesend)."""
         self._tx.send(protocol.build_get_loco_info(address))
+
+    def request_detectors(self) -> None:
+        """Fordert den Belegtstatus aller CAN-Melder einmalig an (rein lesend)."""
+        self._tx.send(protocol.build_get_can_detectors())

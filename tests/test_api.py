@@ -105,3 +105,55 @@ def test_turnout_position_validation() -> None:
 def test_drive_validation_rejects_out_of_range_speed() -> None:
     client, _ = _client()
     assert client.put("/api/locos/3/drive", json={"speed": 200}).status_code == 422
+
+
+def _can_detector_payload(
+    nid: int, addr: int, port: int, typ: int, value1: int, value2: int = 0
+) -> bytes:
+    return (
+        nid.to_bytes(2, "little")
+        + addr.to_bytes(2, "little")
+        + bytes([port, typ])
+        + value1.to_bytes(2, "little")
+        + value2.to_bytes(2, "little")
+    )
+
+
+def test_get_detectors_status_text_and_locos() -> None:
+    client, _ = _client()
+    controller = client.app.state.controller  # type: ignore[attr-defined]
+    # Eingang (nid 0xD764, port 0): besetzt mit Spannung + zwei Lokadressen.
+    controller.on_raw(0xC4, _can_detector_payload(0xD764, 0, 0, 0x01, 0x1100))
+    controller.on_raw(0xC4, _can_detector_payload(0xD764, 0, 0, 0x11, 0x8003, 0xC02A))
+    # Zweiter Eingang (port 1): frei mit Spannung.
+    controller.on_raw(0xC4, _can_detector_payload(0xD764, 0, 1, 0x01, 0x0100))
+
+    body = client.get("/api/detectors").json()
+    detectors = body["detectors"]
+    assert len(detectors) == 2
+    # Sortierung nach (addr, nid, port): port 0 vor port 1.
+    first = detectors[0]
+    assert first["port"] == 0
+    assert first["occupied"] is True
+    assert first["status_text"] == "besetzt (mit Spannung)"
+    assert first["locos"] == [
+        {"address": 3, "direction": "forward"},
+        {"address": 42, "direction": "backward"},
+    ]
+    assert detectors[1]["port"] == 1
+    assert detectors[1]["status_text"] == "frei (mit Spannung)"
+
+
+def test_get_detectors_overload_status_text() -> None:
+    client, _ = _client()
+    controller = client.app.state.controller  # type: ignore[attr-defined]
+    controller.on_raw(0xC4, _can_detector_payload(0xD764, 0, 0, 0x01, 0x1202))
+    body = client.get("/api/detectors").json()
+    assert body["detectors"][0]["status_text"] == "besetzt (Ueberlast 2)"
+
+
+def test_refresh_detectors_sends_query() -> None:
+    client, tx = _client()
+    resp = client.post("/api/detectors/refresh")
+    assert resp.status_code == 204
+    assert protocol.build_get_can_detectors() in tx.sent

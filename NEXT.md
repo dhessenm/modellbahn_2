@@ -26,22 +26,25 @@ Kurzer Faden für den Wiedereinstieg. Für Architektur, Technik und Protokolldet
 - **Web-UI** (Vue 3 + TS), App-Shell mit Navigation + globaler Verbindungsanzeige:
   Dashboard (Zentralenstatus), Lokführerstand, Weichen; Gleisplan-Anzeige/-Modellierung als
   Platzhalter. Im LAN erreichbar (Desktop + iPhone).
+- **Gleisbelegtmeldung — Anzeige** (Roco Z21 Detector 10808, CAN): `LAN_CAN_DETECTOR`
+  (Header `0xC4`), Broadcast-Flag `0x00080000`. Dekodierung → `DetectorInput`-Zustand
+  (Schlüssel `(nid, port)`) → REST `GET /api/detectors` + `POST /api/detectors/refresh` +
+  SSE → UI-Seite „Belegtmelder" (LED belegt/frei, Statustext, RailCom-Lokadressen mit
+  Richtung, Überlast-Hervorhebung). Gegen dokumentierte + reale Beispiel-Bytes getestet.
 - **Infrastruktur**: TOML-Konfig, DEBUG-Logging, Dev-Skript, Tests, CI mit Status-Badge.
 
-## Als Nächstes: Gleisbelegtmeldung
+## Als Nächstes: Automatik Belegtmeldung → Stop + Hardware-Test
 
-Ziel: schnell und zuverlässig erkennen, wenn ein Gleisabschnitt belegt wird (latenzkritisch —
-siehe Latenz-Leitlinie in `tech.md`; wichtig für späteres punktgenaues Halten).
+Die **Anzeige** der Belegtmeldung ist erledigt (siehe Stand oben). Offen bleibt:
 
-- Hardware: Roco **Z21 Detector 10808**, per **CAN-Bus** an die Z21 angebunden.
-- Protokoll: CAN-Belegtmeldungen über `LAN_CAN_DETECTOR` (X-Header `0xC4`). Vor Implementierung
-  Byte-Layout in `external_docs/z21-lan-protokoll.pdf` nachschlagen (Kapitel 10, CAN).
-- Broadcast-Flags: passendes CAN-Flag in `LAN_SET_BROADCASTFLAGS` ergänzen, damit Meldungen
-  eintreffen (analog zum heutigen Vorgehen bei SystemState/Lok-Info).
-- Umsetzung voraussichtlich: `messages.py` (Dekodierung) → `domain` (Belegt-Zustand) →
-  REST + SSE → UI-Anzeige. Ereignisgesteuert verarbeiten, kein Polling.
-- Hinweis: Hardware ist noch nicht installiert — zunächst Dekodierung/Tests gegen Beispieldaten,
-  Live-Test später.
+- **Echter 10808-Test:** Die Hardware wird separat angeschlossen; die Dekodierung ist gegen
+  dokumentierte und bereits an echter Z21 verifizierte Beispiel-Bytes getestet. Beim nächsten
+  Mal die Live-Anzeige gegen den real angeschlossenen Detector prüfen.
+- **Latenzkritische Automatik Belegtmeldung → Stop** (punktgenaues Halten): ereignisgesteuert,
+  minimale Verzögerung (siehe Latenz-Leitlinie in `tech.md`). Baut auf der vorhandenen Anzeige
+  auf, erfordert Blocklogik und einen schnellen Stop-Pfad.
+- **Merker Anzeige:** Melder werden über die stabile **NId** gruppiert (Moduladresse `addr`
+  kommt real oft als `0`); Eingänge sind in der UI 1-basiert (`Port+1`), intern 0-basiert.
 
 ## Offene Punkte / Merker
 
