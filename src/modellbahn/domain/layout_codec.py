@@ -133,6 +133,13 @@ def from_dict(data: dict[str, object]) -> Layout:
     Prueft zuerst die Schema-Version, dann die Grundstruktur. Bei fehlender/
     unbekannter Version oder strukturell kaputtem Input wird `LayoutDecodeError`
     mit deutscher Meldung geworfen (keine stille Falsch-Dekodierung).
+
+    Bewusst asymmetrisch zu `to_dict`: `to_dict` schreibt optionale Collection-/
+    Markierungsfelder (z. B. `detectors`, `markers_forward/backward`,
+    `transit_block_ids`, `end_block_id`) immer explizit, waehrend `from_dict`
+    deren Fehlen tolerant mit Defaults (leere Liste bzw. leere Markierungen)
+    behandelt. Das macht das Laden robust gegenueber aelteren oder von Hand
+    gekuerzten Dateien, ohne die Pflichtfelder (ids/Namen/Typen) aufzuweichen.
     """
     if not isinstance(data, dict):
         raise LayoutDecodeError("Eingabe ist kein Objekt (dict erwartet).")
