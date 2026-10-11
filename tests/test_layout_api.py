@@ -262,3 +262,72 @@ def test_create_app_aborts_on_broken_file(tmp_path: Path) -> None:
     settings = Settings(layout_path=broken)
     with pytest.raises(LayoutDecodeError):
         create_app(settings=settings, transport=FakeTransport())
+
+
+# ---------------------------------------------------------------------------
+# Update-Happy-Paths (Review-Befund: Testluecken)
+# ---------------------------------------------------------------------------
+def test_update_element_changes_fields(tmp_path: Path) -> None:
+    client, _ = _client(tmp_path)
+    element = client.post(
+        "/api/layout/elements",
+        json={"name": "W1", "type": "turnout", "address": 10},
+    ).json()
+    resp = client.put(
+        f"/api/layout/elements/{element['id']}",
+        json={"name": "W1-neu", "type": "turnout", "address": 20},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "W1-neu"
+    assert resp.json()["address"] == 20
+    # Persistiert und im Gesamtmodell sichtbar.
+    layout = client.get("/api/layout").json()
+    assert [e["name"] for e in layout["elements"]] == ["W1-neu"]
+
+
+def test_update_route_changes_fields(tmp_path: Path) -> None:
+    client, _ = _client(tmp_path)
+    start = _new_block(client, "Start")
+    end = _new_block(client, "Ziel")
+    other = _new_block(client, "Ziel2")
+    route = client.post(
+        "/api/layout/routes",
+        json={"name": "F1", "start_block_id": start["id"], "end_block_id": end["id"]},
+    ).json()
+    resp = client.put(
+        f"/api/layout/routes/{route['id']}",
+        json={"name": "F1-neu", "start_block_id": start["id"], "end_block_id": other["id"]},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "F1-neu"
+    assert resp.json()["end_block_id"] == other["id"]
+
+
+# ---------------------------------------------------------------------------
+# SSE-Signal bei Mutation (Kopplung an die UI)
+# ---------------------------------------------------------------------------
+def test_mutation_triggers_sse_publish(tmp_path: Path) -> None:
+    client, _ = _client(tmp_path)
+    broker = client.app.state.broker  # type: ignore[attr-defined]
+    queue = broker.subscribe()
+    try:
+        resp = client.post("/api/layout/blocks", json={"name": "B1"})
+        assert resp.status_code == 201
+        # Eine erfolgreiche Mutation signalisiert "changed" ueber den EventBroker.
+        assert not queue.empty()
+    finally:
+        broker.unsubscribe(queue)
+
+
+def test_failed_mutation_does_not_publish(tmp_path: Path) -> None:
+    client, _ = _client(tmp_path)
+    _new_block(client, "B1")
+    broker = client.app.state.broker  # type: ignore[attr-defined]
+    queue = broker.subscribe()
+    try:
+        # Doppelter Name -> 400, keine Mutation, kein SSE-Signal.
+        resp = client.post("/api/layout/blocks", json={"name": "b1"})
+        assert resp.status_code == 400
+        assert queue.empty()
+    finally:
+        broker.unsubscribe(queue)

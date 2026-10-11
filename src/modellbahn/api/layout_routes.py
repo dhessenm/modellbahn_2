@@ -49,7 +49,6 @@ from modellbahn.api.schemas import (
 )
 from modellbahn.domain.block_runtime import derive_all_block_runtimes
 from modellbahn.domain.layout_service import (
-    _UNSET,
     LayoutService,
     LayoutValidationError,
     ReferenceConflictError,
@@ -302,11 +301,6 @@ def build_layout_router(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         on_mutation()
         return Response(status_code=204)
-
-    # Der Sentinel _UNSET wird importiert, bleibt in Stufe 1 (PUT = Vollersetzung)
-    # aber ungenutzt; ein ausdruecklicher Verweis haelt den Import als bewusste
-    # Dokumentation des Signaturvertrags von update_element am Leben.
-    _ = _UNSET
 
     return router
 
