@@ -70,18 +70,46 @@ start() {
   echo "Fertig. UI: http://localhost:$FRONTEND_PORT/   API: http://127.0.0.1:$BACKEND_PORT/"
 }
 
+kill_orphan_backends() {
+  # Verwaiste uvicorn-Worker abraeumen, die KEIN TCP:8000 mehr halten, aber
+  # weiter den UDP-Socket zur Z21 belegen und so deren Client-Slot blockieren
+  # (dann kommen asynchrone Broadcasts wie LAN_CAN_DETECTOR 0xC4 nicht mehr an).
+  # Solche Worker ueberleben kill_port, weil sie auf keinem TCP-Port lauschen.
+  local pids
+  pids="$(pgrep -f 'uvicorn modellbahn.main:app' 2>/dev/null || true)"
+  if [ -n "$pids" ]; then
+    echo "Beende verwaiste Backend-Prozess(e): $pids"
+    # shellcheck disable=SC2086
+    kill $pids 2>/dev/null || true
+    sleep 2
+    pids="$(pgrep -f 'uvicorn modellbahn.main:app' 2>/dev/null || true)"
+    if [ -n "$pids" ]; then
+      echo "Erzwinge Beenden verwaister Backend-Prozess(e): $pids"
+      # shellcheck disable=SC2086
+      kill -9 $pids 2>/dev/null || true
+    fi
+  fi
+}
+
 stop() {
   kill_port "$BACKEND_PORT"
   kill_port "$FRONTEND_PORT"
+  kill_orphan_backends
   echo "Gestoppt."
 }
 
 status() {
-  local b f
+  local b f orphans
   b="$(pids_on_port "$BACKEND_PORT")"
   f="$(pids_on_port "$FRONTEND_PORT")"
   echo "Backend (Port $BACKEND_PORT): ${b:-nicht aktiv}"
   echo "Frontend (Port $FRONTEND_PORT): ${f:-nicht aktiv}"
+  # Verwaiste Backends (uvicorn ohne TCP:8000) separat anzeigen -- sie blockieren
+  # sonst unbemerkt den Z21-Client-Slot.
+  orphans="$(pgrep -f 'uvicorn modellbahn.main:app' 2>/dev/null || true)"
+  if [ -n "$orphans" ]; then
+    echo "uvicorn-Prozesse gesamt (inkl. evtl. verwaister): $orphans"
+  fi
 }
 
 case "${1:-}" in

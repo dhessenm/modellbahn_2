@@ -97,10 +97,14 @@ class Z21UdpClient:
 
     async def start(self) -> None:
         loop = asyncio.get_running_loop()
-        # Unverbundenes Socket (kein remote_addr); Ziel wird pro sendto angegeben.
-        # local_host optionaler Override fuer das Bind-Interface, sonst 0.0.0.0
-        # (OS waehlt gemaess Routing). Standardmaessig genuegt das; die Wahl des
-        # Interfaces war nie die Ursache von Verbindungsproblemen (siehe unten).
+        # UNVERBUNDENES Socket, gebunden an 0.0.0.0 (alle Interfaces): Es wird
+        # KEIN remote_addr gesetzt. Die Z21-Broadcasts (z. B. LAN_CAN_DETECTOR
+        # 0xC4) kamen damit nachweislich an -- das urspruenglich vermutete
+        # Problem lag nicht am Socket-Typ, sondern an einem verwaisten Backend-
+        # Prozess, der den Z21-Client-Slot blockierte. 0.0.0.0 ist die
+        # robustere Wahl: unabhaengig davon, ueber welches Interface die Z21
+        # erreichbar ist, und ohne an eine konkrete lokale IP gebunden zu sein.
+        # local_host/local_port erlauben bei Bedarf eine feste Bindung.
         local_addr = (self._local_host or "0.0.0.0", self._local_port)
         transport, _ = await loop.create_datagram_endpoint(
             lambda: _Z21DatagramProtocol(self._on_raw, self._mark_received),
@@ -110,7 +114,7 @@ class Z21UdpClient:
         self._received_any = False
         sockname = transport.get_extra_info("sockname")
         logger.info(
-            "Z21-UDP-Socket geoeffnet: lokal=%s ziel=%s:%s",
+            "Z21-UDP-Socket geoeffnet (unverbunden): lokal=%s ziel=%s:%s",
             sockname,
             self._host,
             self._port,
@@ -162,7 +166,7 @@ class Z21UdpClient:
         if self._transport is None:
             raise RuntimeError("Z21UdpClient ist nicht gestartet")
         logger.debug("SEND %d B: %s", len(dataset), dataset.hex(" "))
-        # Explizites Ziel (unverbundenes Socket). OSError defensiv abfangen,
+        # Unverbundenes Socket: Ziel explizit angeben. OSError defensiv abfangen,
         # damit ein einmaliger Sendefehler nicht den Keep-Alive-Task beendet.
         try:
             self._transport.sendto(dataset, (self._host, self._port))
