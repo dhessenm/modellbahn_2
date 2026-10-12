@@ -56,6 +56,19 @@ Kurzer Faden für den Wiedereinstieg. Für Architektur, Technik und Protokolldet
   - **Live gegen echte Z21 verifiziert:** Block mit zugeordnetem Melder (55140, Port 0);
     `/api/layout/runtime` meldet `occupied` + RailCom-Lok 3; UI-Seite „Anlage" wechselt live
     bei Statuswechsel des Belegtmelders (Kette Broadcast → Blockzustand → SSE → UI).
+- **Lokverwaltung (Roster)** — persistente Lok-Bibliothek (`conf/roster.json`, Spec unter
+  `.kiro/specs/lokverwaltung/`):
+  - **Backend**: `domain/roster*.py` (Locomotive-Stammdaten: Name, DCC-Adresse, Fahrstufenmodus
+    14/28/128, Funktionsanzahl, Länge mm, Vmax km/h Vorbild, Notizen), CRUD-Service mit
+    Validierung + Adress-Duplikat-Warnung (weich), JSON-Persistenz + Backups. REST-API
+    `/api/roster`. Fahrstufenmodus durch `build_loco_drive` bis zur UI durchgereicht.
+  - **Web-UI** (`/roster`, Menü „Lokomotiven"): Lok-Liste mit Anlegen/Bearbeiten/Löschen.
+  - **Lokführerstand-Umbau**: Dropdown (nur verwaltete Loks) statt freier DCC-Adresseingabe;
+    **vertikaler Schieberegler** (min unten, max oben, Mobile-tauglich); Fahrstufenmodus +
+    Funktionsanzahl aus Lok-Stammdaten; LocoInfoFrame einklappbar (`<details>`); TrackPower
+    in die globale Statusleiste verschoben.
+  - **App-Shell-Statusleiste**: Verbindungs-LED (grün/grau, kein Text) links, Navigation Mitte,
+    Gleisspannungs-Schalter rechts — kompakt, auf allen Seiten sichtbar.
 - **Infrastruktur**: TOML-Konfig, DEBUG-Logging, Dev-Skript, Tests, CI mit Status-Badge.
 
 ## Als Nächstes
