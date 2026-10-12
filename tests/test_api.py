@@ -103,8 +103,10 @@ def test_turnout_position_validation() -> None:
 
 
 def test_drive_validation_rejects_out_of_range_speed() -> None:
+    # Die modusabhaengige Range-Pruefung liegt jetzt in build_loco_drive
+    # (nicht mehr im Pydantic-Schema), daher 400 statt 422.
     client, _ = _client()
-    assert client.put("/api/locos/3/drive", json={"speed": 200}).status_code == 422
+    assert client.put("/api/locos/3/drive", json={"speed": 200}).status_code == 400
 
 
 def _can_detector_payload(
