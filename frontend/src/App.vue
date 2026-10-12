@@ -57,7 +57,7 @@ onUnmounted(() => {
   flex-wrap: wrap;
   padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--color-border, #444);
-  max-height: 48px;
+  min-height: 48px;
   box-sizing: border-box;
 }
 .nav {

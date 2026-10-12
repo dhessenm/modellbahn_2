@@ -1,14 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
 import type { Locomotive } from '@/api/roster-types'
 import type { LocoState, SystemStatus } from '@/api/types'
 
 // --- Roster-Store mocken ---------------------------------------------------
 // Modul-weite Refs, die wir je Test befuellen koennen.
 const rosterLocomotives = vi.hoisted(() => ({ value: [] as Locomotive[] }))
-const rosterStart = vi.hoisted(() => vi.fn())
-const rosterStop = vi.hoisted(() => vi.fn())
+const rosterStart = vi.hoisted(() => vi.fn<() => Promise<void>>())
+const rosterStop = vi.hoisted(() => vi.fn<() => void>())
 
 vi.mock('@/stores/roster', () => ({
   useRosterStore: () => ({
@@ -22,9 +21,11 @@ vi.mock('@/stores/roster', () => ({
 const layoutStatus = vi.hoisted(() => ({ value: null as SystemStatus | null }))
 const layoutLoco = vi.hoisted(() => ({ value: null as LocoState | null }))
 const layoutActiveAddress = vi.hoisted(() => ({ value: null as number | null }))
-const layoutSelectLoco = vi.hoisted(() => vi.fn())
-const layoutDrive = vi.hoisted(() => vi.fn())
-const layoutSetFunction = vi.hoisted(() => vi.fn())
+const layoutSelectLoco = vi.hoisted(() => vi.fn<(address: number) => Promise<void>>())
+const layoutDrive = vi.hoisted(() =>
+  vi.fn<(speed: number, forward: boolean, speedSteps?: number) => Promise<void>>(),
+)
+const layoutSetFunction = vi.hoisted(() => vi.fn<(func: number, on: boolean) => Promise<void>>())
 
 vi.mock('@/stores/layout', () => ({
   useLayoutStore: () => ({

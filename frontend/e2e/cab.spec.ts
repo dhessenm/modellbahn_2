@@ -6,6 +6,31 @@ async function mockBackend(page: Page): Promise<void> {
   const loco = { address: 3, speed: 0, forward: true, functions: {} as Record<number, boolean> }
   let trackPower = true
 
+  // Lokverwaltung: eine Lok, damit der Lokfuehrerstand sie im Dropdown
+  // anbietet. speed_steps=128 -> maxSpeed 126 (deckt die Testgrenze 60 ab).
+  const roster = [
+    {
+      id: 'lok1',
+      name: 'BR 218',
+      address: 3,
+      speed_steps: 128,
+      function_count: 28,
+      length_mm: null as number | null,
+      max_speed_kmh: null as number | null,
+      notes: '',
+    },
+  ]
+  await page.route('**/api/roster/*', (route) => route.fulfill({ status: 404, body: '' }))
+  await page.route('**/api/roster', (route) =>
+    route.fulfill({ json: { locomotives: roster } }),
+  )
+
+  // Anlagenmodell wird vom globalen LayoutStore beim Start geladen.
+  await page.route('**/api/layout/runtime', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/layout', (route) =>
+    route.fulfill({ json: { blocks: [], elements: [], routes: [] } }),
+  )
+
   await page.route('**/api/system/status', (route) =>
     route.fulfill({
       json: {
@@ -118,10 +143,10 @@ async function mockBackend(page: Page): Promise<void> {
     }),
   )
 
-  // SSE-Endpunkt: offener Stream ohne Events (verhindert Netzwerk-Fehler).
-  await page.route('**/api/events', (route) =>
-    route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: '' }),
-  )
+  // SSE-Endpunkt: Anfrage offen halten (nicht beantworten), simuliert einen
+  // offenen Event-Stream ohne Daten. KEIN route.fulfill() -- dadurch bleibt
+  // die Verbindung stehen und der EventSource-Reconnect-Loop wird verhindert.
+  await page.route('**/api/events', () => {})
 }
 
 test('Dashboard zeigt Zentralenstatus', async ({ page }) => {
@@ -142,14 +167,16 @@ test('Lokfuehrerstand: Lok waehlen, fahren, Funktion schalten', async ({ page })
   await page.getByRole('link', { name: 'Lokführerstand', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Lokführerstand' })).toBeVisible()
 
-  // Lok 3 waehlen
-  await page.getByLabel('Lok-Adresse (DCC)').fill('3')
-  await page.getByRole('button', { name: 'Übernehmen' }).click()
+  // Lok aus dem Dropdown waehlen (ersetzt die fruehere Adress-Eingabe)
+  await page.locator('#loco-select').selectOption({ label: 'BR 218 (Adr.\u00a03)' })
 
   // Fahrregler sichtbar; Fahrstufe setzen (unterhalb der Testgrenze 60)
   const slider = page.getByLabel('Fahrstufe')
   await expect(slider).toBeVisible()
   await slider.fill('30')
+
+  // Lok-Details aufklappen (default eingeklappt seit FEAT-002).
+  await page.getByText('Lok-Details').click()
 
   // Infoframe zeigt die Geschwindigkeit als Key-Value
   await expect(page.getByText('Geschwindigkeit')).toBeVisible()

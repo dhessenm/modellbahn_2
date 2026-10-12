@@ -67,10 +67,10 @@ async function mockBackend(
       },
     }),
   )
-  await page.route('**/api/events', (route) =>
-    route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: '' }),
-  )
-  // Der globale useLayoutStore in App.vue fragt beim Start auch die Melder ab.
+  // SSE-Endpunkt: Anfrage offen halten (nicht beantworten), simuliert einen
+  // offenen Event-Stream ohne Daten. KEIN route.fulfill() -- dadurch bleibt
+  // die Verbindung stehen und der EventSource-Reconnect-Loop wird verhindert.
+  await page.route('**/api/events', () => {})
   await page.route('**/api/detectors', (route) => route.fulfill({ json: { detectors: [] } }))
 
   // WICHTIG: Playwright prueft Routen in UMGEKEHRTER Registrierreihenfolge
