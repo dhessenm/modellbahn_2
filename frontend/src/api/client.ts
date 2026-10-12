@@ -13,6 +13,7 @@ import type {
   RouteWrite,
   TopologyElement,
 } from './layout-types'
+import type { LocoWrite, LocoWriteResponse, RosterResponse } from './roster-types'
 import { layoutErrorFromResponse } from './layout-error'
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
@@ -176,6 +177,27 @@ export const api = {
 
   deleteRoute(id: string): Promise<void> {
     return layoutVoid(`/api/layout/routes/${id}`, { method: 'DELETE' })
+  },
+
+  // --- Lokverwaltung (/api/roster) ---
+  // Lesemethode liefert die Gesamtliste. Schreibmethoden liefern den Wrapper
+  // { entity, warnings }; DELETE liefert void (204). 400/404 werden ueber
+  // layoutRequest in eine LayoutApiError ({detail:string}) uebersetzt.
+
+  getRoster(): Promise<RosterResponse> {
+    return layoutJson<RosterResponse>('/api/roster')
+  },
+
+  createLoco(body: LocoWrite): Promise<LocoWriteResponse> {
+    return layoutJson<LocoWriteResponse>('/api/roster', layoutBody('POST', body))
+  },
+
+  updateLoco(id: string, body: LocoWrite): Promise<LocoWriteResponse> {
+    return layoutJson<LocoWriteResponse>(`/api/roster/${id}`, layoutBody('PUT', body))
+  },
+
+  deleteLoco(id: string): Promise<void> {
+    return layoutVoid(`/api/roster/${id}`, { method: 'DELETE' })
   },
 
   // SSE: ruft onChange bei jeder Zustandsaenderung im Backend auf.
