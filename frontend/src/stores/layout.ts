@@ -85,9 +85,9 @@ export function useLayoutStore() {
     await refreshStatus()
   }
 
-  async function drive(speed: number, forward: boolean): Promise<void> {
+  async function drive(speed: number, forward: boolean, speed_steps: number = 128): Promise<void> {
     if (activeAddress.value === null) return
-    await api.drive(activeAddress.value, speed, forward)
+    await api.drive(activeAddress.value, speed, forward, speed_steps)
     await refreshLoco()
   }
 

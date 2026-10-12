@@ -1,16 +1,21 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps<{
   speed: number
   forward: boolean
   disabled: boolean
+  maxSpeed?: number
 }>()
 
 const emit = defineEmits<{
   (e: 'drive', payload: { speed: number; forward: boolean }): void
   (e: 'stop'): void
 }>()
+
+// Hoechste erlaubte Fahrstufe (abhaengig vom Fahrstufenmodus der Lok).
+// Ohne Angabe gilt der DCC-128-Standard (126 fahrbare Stufen).
+const effectiveMax = computed(() => props.maxSpeed ?? 126)
 
 // Lokaler Reglerwert, der dem Backend-Zustand folgt, solange nicht gezogen wird.
 const localSpeed = ref(props.speed)
@@ -22,7 +27,7 @@ watch(
 )
 
 function onSpeedInput(event: Event): void {
-  const value = Number((event.target as HTMLInputElement).value)
+  const value = Math.min(Number((event.target as HTMLInputElement).value), effectiveMax.value)
   localSpeed.value = value
   emit('drive', { speed: value, forward: props.forward })
 }
@@ -36,17 +41,19 @@ function setDirection(forward: boolean): void {
   <div class="throttle">
     <div class="speed-row">
       <label for="speed">Fahrstufe</label>
+    </div>
+    <div class="slider-vertical">
+      <input
+        id="speed"
+        type="range"
+        min="0"
+        :max="effectiveMax"
+        :value="localSpeed"
+        :disabled="disabled"
+        @input="onSpeedInput"
+      />
       <output class="speed-value">{{ localSpeed }}</output>
     </div>
-    <input
-      id="speed"
-      type="range"
-      min="0"
-      max="126"
-      :value="localSpeed"
-      :disabled="disabled"
-      @input="onSpeedInput"
-    />
 
     <div class="controls">
       <button type="button" :disabled="disabled" :class="{ active: forward }" @click="setDirection(true)">
@@ -76,8 +83,19 @@ function setDirection(forward: boolean): void {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-input[type='range'] {
-  width: 100%;
+/* Vertikaler Fahrstufenregler: kleinste Stufe unten, hoechste oben.
+   writing-mode:vertical-lr + direction:rtl kehrt die Achse so um, dass der
+   Regler cross-browser von unten nach oben laeuft -- ergonomisch am Handy. */
+.slider-vertical {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.slider-vertical input[type='range'] {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  height: 200px;
+  width: auto;
 }
 .controls {
   display: flex;
@@ -85,6 +103,7 @@ input[type='range'] {
 }
 .controls button {
   flex: 1;
+  min-height: 44px;
   padding: 0.5rem;
   border-radius: 6px;
   border: 1px solid var(--color-border, #444);

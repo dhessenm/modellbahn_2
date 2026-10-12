@@ -84,9 +84,14 @@ export const api = {
     await request(`/api/locos/${address}/subscribe`, { method: 'POST' })
   },
 
-  async drive(address: number, speed: number, forward: boolean): Promise<void> {
+  async drive(
+    address: number,
+    speed: number,
+    forward: boolean,
+    speed_steps: number = 128,
+  ): Promise<void> {
     await request(`/api/locos/${address}/drive`, {
-      ...jsonBody({ speed, forward }),
+      ...jsonBody({ speed, forward, speed_steps }),
       method: 'PUT',
     })
   },
