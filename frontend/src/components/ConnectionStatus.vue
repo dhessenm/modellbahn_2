@@ -1,44 +1,32 @@
 <script setup lang="ts">
 defineProps<{
   connected: boolean
-  host: string
-  port: number
+  host?: string
+  port?: number
 }>()
 </script>
 
 <template>
-  <div class="connection" :class="{ online: connected }">
-    <span class="dot" aria-hidden="true"></span>
-    <span class="label">
-      {{ connected ? 'Verbunden' : 'Keine Verbindung' }}
-    </span>
-    <span class="target">Z21 {{ host }}:{{ port }}</span>
-  </div>
+  <span
+    class="connection-led"
+    :class="{ on: connected }"
+    data-testid="connection-led"
+    :title="connected ? `Verbunden Z21 ${host}:${port}` : 'Keine Verbindung'"
+    aria-label="Verbindungsstatus"
+  ></span>
 </template>
 
 <style scoped>
-.connection {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.75rem;
-  border-radius: 999px;
-  background: #3a1414;
-  color: #ffb4b4;
-  font-size: 0.9rem;
-}
-.connection.online {
-  background: #10331a;
-  color: #9be7a9;
-}
-.dot {
-  width: 10px;
-  height: 10px;
+.connection-led {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: currentColor;
+  background: #555;
+  flex-shrink: 0;
 }
-.target {
-  opacity: 0.7;
-  font-variant-numeric: tabular-nums;
+.connection-led.on {
+  background: #2ecc71;
+  box-shadow: 0 0 6px #2ecc71;
 }
 </style>

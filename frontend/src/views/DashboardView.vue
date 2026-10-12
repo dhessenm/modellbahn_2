@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import SystemStatePanel from '@/components/SystemStatePanel.vue'
-import TrackPower from '@/components/TrackPower.vue'
 import { useLayoutStore } from '@/stores/layout'
 
 const store = useLayoutStore()
@@ -12,13 +11,6 @@ const store = useLayoutStore()
     <h1>Dashboard</h1>
 
     <SystemStatePanel :status="store.status.value" />
-
-    <section class="panel">
-      <TrackPower
-        :on="store.status.value?.track_power_on ?? false"
-        @toggle="(on) => store.setTrackPower(on)"
-      />
-    </section>
 
     <section class="panel quick">
       <RouterLink to="/throttle" class="quick-link">Zum Lokführerstand →</RouterLink>

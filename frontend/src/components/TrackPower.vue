@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   on: boolean
 }>()
 const emit = defineEmits<{
@@ -8,41 +8,39 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="track-power">
-    <span class="label">Gleisspannung</span>
-    <span class="state" :class="{ on }">{{ on ? 'EIN' : 'AUS' }}</span>
-    <div class="buttons">
-      <button type="button" :disabled="on" @click="emit('toggle', true)">Ein</button>
-      <button type="button" :disabled="!on" @click="emit('toggle', false)">Aus</button>
-    </div>
+  <div class="track-power-compact" data-testid="track-power">
+    <span class="tp-led" :class="{ on: props.on }"></span>
+    <button type="button" class="tp-toggle" @click="emit('toggle', !props.on)">
+      Gleis {{ props.on ? 'Aus' : 'Ein' }}
+    </button>
   </div>
 </template>
 
 <style scoped>
-.track-power {
+.track-power-compact {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
-.state {
-  font-weight: 700;
-  color: #ffb4b4;
+.tp-led {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #555;
 }
-.state.on {
-  color: #9be7a9;
+.tp-led.on {
+  background: #2ecc71;
+  box-shadow: 0 0 6px #2ecc71;
 }
-.buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-button {
-  padding: 0.35rem 0.9rem;
+.tp-toggle {
+  padding: 0.2rem 0.6rem;
   border-radius: 6px;
   border: 1px solid var(--color-border, #444);
   cursor: pointer;
-}
-button:disabled {
-  opacity: 0.4;
-  cursor: default;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  min-height: 32px;
 }
 </style>

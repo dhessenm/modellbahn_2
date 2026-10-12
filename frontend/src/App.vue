@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 import ConnectionStatus from '@/components/ConnectionStatus.vue'
+import TrackPower from '@/components/TrackPower.vue'
 import { useLayoutStore } from '@/stores/layout'
 
 // Der Store wird EINMAL auf App-Ebene gestartet und von allen Seiten geteilt.
@@ -18,7 +19,11 @@ onUnmounted(() => {
 <template>
   <div class="app-shell">
     <header class="app-header">
-      <div class="brand">Modellbahn</div>
+      <ConnectionStatus
+        :connected="store.status.value?.connected ?? false"
+        :host="store.status.value?.z21_host ?? '—'"
+        :port="store.status.value?.z21_port ?? 0"
+      />
       <nav class="nav">
         <RouterLink to="/">Dashboard</RouterLink>
         <RouterLink to="/throttle">Lokführerstand</RouterLink>
@@ -29,10 +34,9 @@ onUnmounted(() => {
         <RouterLink to="/track-plan">Gleisplan</RouterLink>
         <RouterLink to="/track-edit">Gleisplan bearbeiten</RouterLink>
       </nav>
-      <ConnectionStatus
-        :connected="store.status.value?.connected ?? false"
-        :host="store.status.value?.z21_host ?? '—'"
-        :port="store.status.value?.z21_port ?? 0"
+      <TrackPower
+        :on="store.status.value?.track_power_on ?? false"
+        @toggle="(on: boolean) => store.setTrackPower(on)"
       />
     </header>
 
@@ -51,18 +55,17 @@ onUnmounted(() => {
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--color-border, #444);
-}
-.brand {
-  font-weight: 700;
-  font-size: 1.15rem;
+  max-height: 48px;
+  box-sizing: border-box;
 }
 .nav {
   display: flex;
   gap: 0.25rem;
   flex-wrap: wrap;
   flex: 1;
+  justify-content: center;
 }
 .nav a {
   padding: 0.35rem 0.7rem;
