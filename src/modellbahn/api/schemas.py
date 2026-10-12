@@ -26,8 +26,11 @@ class TrackPowerRequest(BaseModel):
 
 
 class DriveRequest(BaseModel):
-    speed: int = Field(ge=0, le=126, description="DCC-Fahrstufe 0..126 (0 = Stop)")
+    # Die genaue, modusabhaengige Range-Pruefung (0..13/27/126 je nach
+    # Fahrstufenmodus) erfolgt in build_loco_drive; hier nur speed >= 0.
+    speed: int = Field(ge=0, description="DCC-Fahrstufe (0 = Stop)")
     forward: bool = True
+    speed_steps: int = Field(default=128, description="Fahrstufenmodus: 14, 28 oder 128")
 
 
 class FunctionRequest(BaseModel):

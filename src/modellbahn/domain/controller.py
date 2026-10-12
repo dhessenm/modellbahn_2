@@ -90,8 +90,8 @@ class LocoController:
         self.state.track_power_on = on
         self._notify()
 
-    def drive(self, address: int, speed: int, forward: bool) -> None:
-        self._tx.send(protocol.build_loco_drive(address, speed, forward))
+    def drive(self, address: int, speed: int, forward: bool, speed_steps: int = 128) -> None:
+        self._tx.send(protocol.build_loco_drive(address, speed, forward, speed_steps))
         loco = self.state.loco(address)
         loco.speed = speed
         loco.forward = forward

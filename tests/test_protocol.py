@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from modellbahn.z21.client import Z21UdpClient
 from modellbahn.z21.protocol import (
     BROADCAST_CAN_DETECTOR,
@@ -56,6 +58,55 @@ def test_build_loco_drive_direction_and_speed() -> None:
     assert ds[:7] == bytes([0x0A, 0x00, 0x40, 0x00, 0xE4, 0x13, 0x00])
     assert ds[7] == 0x03
     assert ds[8] == 0x80 | 11  # forward + speed_value
+
+
+def test_build_loco_drive_128_steps() -> None:
+    # Explizit speed_steps=128: DB0 = 0x13, identisch zum Default-Verhalten.
+    ds = build_loco_drive(3, 10, forward=True, speed_steps=128)
+    assert ds[:7] == bytes([0x0A, 0x00, 0x40, 0x00, 0xE4, 0x13, 0x00])
+    assert ds[7] == 0x03
+    assert ds[8] == 0x80 | 11
+
+
+def test_build_loco_drive_28_steps() -> None:
+    # DB0 = 0x12. speed=0 -> speed_value 0; speed=15 -> 16.
+    ds_stop = build_loco_drive(3, 0, forward=True, speed_steps=28)
+    assert ds_stop[5] == 0x12  # DB0
+    assert ds_stop[8] == 0x80 | 0  # forward, Stop
+    ds_fwd = build_loco_drive(3, 15, forward=True, speed_steps=28)
+    assert ds_fwd[5] == 0x12
+    assert ds_fwd[8] == 0x80 | 16  # forward + (15+1)
+    ds_back = build_loco_drive(3, 15, forward=False, speed_steps=28)
+    assert ds_back[5] == 0x12
+    assert ds_back[8] == 0x00 | 16  # backward + (15+1)
+
+
+def test_build_loco_drive_14_steps() -> None:
+    # DB0 = 0x10. speed=0 -> 0; speed=7 -> 8.
+    ds_stop = build_loco_drive(3, 0, forward=True, speed_steps=14)
+    assert ds_stop[5] == 0x10
+    assert ds_stop[8] == 0x80 | 0
+    ds_fwd = build_loco_drive(3, 7, forward=True, speed_steps=14)
+    assert ds_fwd[5] == 0x10
+    assert ds_fwd[8] == 0x80 | 8  # forward + (7+1)
+    ds_back = build_loco_drive(3, 7, forward=False, speed_steps=14)
+    assert ds_back[5] == 0x10
+    assert ds_back[8] == 0x00 | 8  # backward + (7+1)
+
+
+def test_build_loco_drive_invalid_speed_steps() -> None:
+    with pytest.raises(ValueError):
+        build_loco_drive(3, 0, forward=True, speed_steps=64)
+
+
+def test_build_loco_drive_speed_range_28() -> None:
+    with pytest.raises(ValueError):
+        build_loco_drive(3, 29, forward=True, speed_steps=28)
+
+
+def test_build_loco_drive_speed_range_14() -> None:
+    with pytest.raises(ValueError):
+        build_loco_drive(3, 15, forward=True, speed_steps=14)
 
 
 def test_build_loco_function_toggle_bits() -> None:

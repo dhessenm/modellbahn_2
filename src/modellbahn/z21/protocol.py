@@ -43,6 +43,7 @@ def build_xbus(x_header: int, data: bytes = b"") -> bytes:
 
 # --- Adress-Kodierung ------------------------------------------------------
 
+
 def encode_loco_address(address: int) -> tuple[int, int]:
     """Kodiert eine Lok-Adresse in (Adr_MSB, Adr_LSB).
 
@@ -59,6 +60,7 @@ def encode_loco_address(address: int) -> tuple[int, int]:
 
 
 # --- System / Track Power --------------------------------------------------
+
 
 def build_get_status() -> bytes:
     """LAN_X_GET_STATUS (X-Header 0x21, DB0 0x24). Dient auch als Keep-Alive."""
@@ -101,21 +103,41 @@ def build_set_broadcastflags(flags: int) -> bytes:
     return build_dataset(0x50, flags.to_bytes(4, "little"))
 
 
-# --- Fahren (DCC 128 Fahrstufen) -------------------------------------------
+# --- Fahren (DCC: 14 / 28 / 128 Fahrstufen) --------------------------------
 
-def build_loco_drive(address: int, speed: int, forward: bool) -> bytes:
-    """LAN_X_SET_LOCO_DRIVE fuer DCC mit 128 Fahrstufen.
+# Fahrstufenmodus -> (DB0, maximale Fahrstufe, Maske fuer den Fahrstufenwert).
+# DB0 kodiert die Zahl der Fahrstufen (S-Bits): 0x10=14, 0x12=28, 0x13=128.
+# Hinweis zur 28-Stufen-Variante (DB0=0x12): Die Z21-Spezifikation kennt fuer
+# 28 Fahrstufen eine Kodierung mit vertauschtem LSB (C-Bit). Wir nutzen bewusst
+# die einfache lineare speed+1-Kodierung konsistent zu 14 und 128 Fahrstufen;
+# die Z21 akzeptiert diese bei DB0=0x12.
+_SPEED_STEP_MODES: dict[int, tuple[int, int, int]] = {
+    14: (0x10, 14, 0x0F),
+    28: (0x12, 28, 0x1F),
+    128: (0x13, 126, 0x7F),
+}
 
-    speed: 0..126 (0 = Stop). DB0 = 0x13 (S=3 => 128 Fahrstufen).
-    DB3 = RVVVVVVV: R = Richtung (1=vorwaerts), VVVVVVV = Fahrstufenwert.
-    Bei 128 Fahrstufen gilt: 0=Stop, 1=Nothalt, Fahrstufe n -> Wert n+1.
+
+def build_loco_drive(address: int, speed: int, forward: bool, speed_steps: int = 128) -> bytes:
+    """LAN_X_SET_LOCO_DRIVE fuer DCC mit 14, 28 oder 128 Fahrstufen.
+
+    speed_steps: 14, 28 oder 128 (Default 128). DB0 kodiert den Modus:
+    0x10 (14), 0x12 (28), 0x13 (128). speed liegt im modusspezifischen Bereich
+    0..max (14/28/126). DB3 = RVVVVVVV: R = Richtung (1=vorwaerts), VVVVVVV =
+    Fahrstufenwert. In allen Modi gilt linear: 0=Stop, 1=Nothalt reserviert,
+    Fahrstufe n -> Wert n+1. Ungueltiger speed_steps-Wert oder speed ausserhalb
+    des Bereichs loesen ValueError aus.
     """
-    if not 0 <= speed <= 126:
-        raise ValueError(f"Fahrstufe ausserhalb 0..126: {speed}")
+    mode = _SPEED_STEP_MODES.get(speed_steps)
+    if mode is None:
+        raise ValueError(f"Ungueltiger Fahrstufenmodus (14, 28 oder 128): {speed_steps}")
+    db0, max_speed, mask = mode
+    if not 0 <= speed <= max_speed:
+        raise ValueError(f"Fahrstufe ausserhalb 0..{max_speed}: {speed}")
     msb, lsb = encode_loco_address(address)
     speed_value = 0 if speed == 0 else speed + 1  # 1 ist fuer Nothalt reserviert
-    db3 = (0x80 if forward else 0x00) | (speed_value & 0x7F)
-    return build_xbus(0xE4, bytes([0x13, msb, lsb, db3]))
+    db3 = (0x80 if forward else 0x00) | (speed_value & mask)
+    return build_xbus(0xE4, bytes([db0, msb, lsb, db3]))
 
 
 def build_get_loco_info(address: int) -> bytes:
@@ -142,6 +164,7 @@ def build_loco_function(address: int, function: int, on: bool) -> bytes:
 
 
 # --- Weichen / Zubehör (DCC) -----------------------------------------------
+
 
 def encode_turnout_address(address: int) -> tuple[int, int]:
     """Kodiert eine Weichen-/Funktionsdecoder-Adresse in (FAdr_MSB, FAdr_LSB).
@@ -180,6 +203,7 @@ def build_get_turnout_info(address: int) -> bytes:
 
 # --- CAN-Belegtmelder (Roco Z21 Detector 10808) ----------------------------
 
+
 def build_get_can_detectors(network_id: int = 0xD000) -> bytes:
     """LAN_CAN_DETECTOR Request (Header 0xC4): fragt den Belegtstatus ab.
 
@@ -194,6 +218,7 @@ def build_get_can_detectors(network_id: int = 0xD000) -> bytes:
 
 
 # --- Dekodierung von Empfangsdaten -----------------------------------------
+
 
 def parse_datasets(buffer: bytes) -> list[tuple[int, bytes]]:
     """Zerlegt ein (ggf. kombiniertes) UDP-Nutzlast-Buffer in Datensaetze.
@@ -211,4 +236,3 @@ def parse_datasets(buffer: bytes) -> list[tuple[int, bytes]]:
         out.append((header, data))
         offset += data_len
     return out
-

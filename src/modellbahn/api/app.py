@@ -216,7 +216,10 @@ def _register_routes(
 
     @app.put("/api/locos/{address}/drive", status_code=204)
     def drive(address: int, req: DriveRequest) -> Response:
-        controller.drive(address, req.speed, req.forward)
+        try:
+            controller.drive(address, req.speed, req.forward, req.speed_steps)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         return Response(status_code=204)
 
     @app.put("/api/locos/{address}/function", status_code=204)
