@@ -19,6 +19,8 @@ from modellbahn.domain.layout import (
 )
 from modellbahn.domain.layout_consistency import ConsistencyWarning
 from modellbahn.domain.layout_service import ReferenceBlocker
+from modellbahn.domain.roster import Locomotive
+from modellbahn.domain.roster_service import RosterWarning
 
 
 class TrackPowerRequest(BaseModel):
@@ -342,3 +344,72 @@ def warnings_to_models(warnings: list[ConsistencyWarning]) -> list[WarningRespon
 def blockers_to_models(blockers: list[ReferenceBlocker]) -> list[ReferenceBlockerModel]:
     """Bildet Loeschschutz-Blocker auf das Response-Schema ab."""
     return [ReferenceBlockerModel(type=b.type, id=b.id, name=b.name) for b in blockers]
+
+
+# ---------------------------------------------------------------------------
+# Lokverwaltung (Roster): Request-/Response-Schemata
+# ---------------------------------------------------------------------------
+
+
+class LocoRequest(BaseModel):
+    """Anlegen/Aendern einer verwalteten Lok."""
+
+    name: str
+    address: int = Field(ge=1, le=9999, description="DCC-Adresse 1..9999")
+    speed_steps: int = 128
+    function_count: int = Field(default=28, ge=0, le=28)
+    length_mm: int | None = None
+    max_speed_kmh: int | None = None
+    notes: str = ""
+
+
+class LocoResponse(BaseModel):
+    """Lok-Stammdaten (Antwort)."""
+
+    id: str
+    name: str
+    address: int
+    speed_steps: int
+    function_count: int
+    length_mm: int | None
+    max_speed_kmh: int | None
+    notes: str
+
+
+class RosterResponse(BaseModel):
+    """Gesamtliste fuer `GET /api/roster`."""
+
+    locomotives: list[LocoResponse]
+
+
+class RosterWarningResponse(BaseModel):
+    """Warnung (z. B. Adress-Duplikat) — nicht blockierend."""
+
+    code: str
+    message: str
+
+
+class LocoWriteResponse(BaseModel):
+    """Wrapper fuer Lok-Schreibzugriffe: Entitaet plus Warnungen."""
+
+    entity: LocoResponse
+    warnings: list[RosterWarningResponse]
+
+
+def loco_to_response(loco: Locomotive) -> LocoResponse:
+    """Bildet eine `Locomotive` auf das Response-Schema ab."""
+    return LocoResponse(
+        id=loco.id,
+        name=loco.name,
+        address=loco.address,
+        speed_steps=loco.speed_steps,
+        function_count=loco.function_count,
+        length_mm=loco.length_mm,
+        max_speed_kmh=loco.max_speed_kmh,
+        notes=loco.notes,
+    )
+
+
+def roster_warnings_to_models(warnings: list[RosterWarning]) -> list[RosterWarningResponse]:
+    """Bildet Roster-Warnungen auf das Response-Schema ab."""
+    return [RosterWarningResponse(code=w.code, message=w.message) for w in warnings]

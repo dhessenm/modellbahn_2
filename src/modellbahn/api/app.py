@@ -21,6 +21,7 @@ from fastapi.responses import StreamingResponse
 
 from modellbahn.api.events import EventBroker
 from modellbahn.api.layout_routes import build_layout_router
+from modellbahn.api.roster_routes import build_roster_router
 from modellbahn.api.schemas import (
     DetectorInputResponse,
     DetectorLocoResponse,
@@ -34,9 +35,10 @@ from modellbahn.api.schemas import (
     TurnoutStateResponse,
 )
 from modellbahn.config import Settings, get_settings
-from modellbahn.domain import layout_store
+from modellbahn.domain import layout_store, roster_store
 from modellbahn.domain.controller import LocoController
 from modellbahn.domain.layout_service import LayoutService
+from modellbahn.domain.roster_service import RosterService
 from modellbahn.domain.state import DetectorInput, LayoutState
 from modellbahn.logging_setup import configure_logging
 from modellbahn.z21.client import Z21Transport, Z21UdpClient
@@ -155,6 +157,30 @@ def create_app(
             get_service=lambda: layout_service,
             get_state=lambda: controller.state,
             on_mutation=_persist_layout,
+        )
+    )
+
+    # Lokverwaltung (Roster) beim Start laden — selbes Muster wie Layout.
+    roster = roster_store.load(settings.roster_path)
+    roster_service = RosterService(roster)
+    app.state.roster_service = roster_service
+
+    roster_backup_dir = settings.roster_path.parent / f"{settings.roster_path.stem}-backups"
+
+    def _persist_roster() -> None:
+        """Persistiert das Roster und signalisiert die Aenderung per SSE."""
+        roster_store.save(
+            settings.roster_path,
+            roster_service.roster,
+            backup_dir=roster_backup_dir,
+            backup_count=settings.roster_backup_count,
+        )
+        broker.publish()
+
+    app.include_router(
+        build_roster_router(
+            get_service=lambda: roster_service,
+            on_mutation=_persist_roster,
         )
     )
 
