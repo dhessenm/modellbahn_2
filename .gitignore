@@ -44,6 +44,10 @@ conf/config.toml
 conf/layout.json
 conf/layout-backups/
 
+# Lokale Lok-Stammdaten + Backups (Beispiel bleibt eingecheckt)
+conf/roster.json
+conf/roster-backups/
+
 # Externe Referenzdokumentation (nicht Teil des Repos)
 external_docs/
 

@@ -31,6 +31,10 @@ _CONFIG_PATH = _PROJECT_ROOT / "conf" / "config.toml"
 # Projektwurzel, damit er unabhaengig vom Arbeitsverzeichnis stimmt.
 _DEFAULT_LAYOUT_PATH = _PROJECT_ROOT / "conf" / "layout.json"
 
+# Default-Ablageort der Lok-Stammdaten (JSON). Getrennt vom Anlagenmodell;
+# ebenfalls absolut gegen die Projektwurzel.
+_DEFAULT_ROSTER_PATH = _PROJECT_ROOT / "conf" / "roster.json"
+
 
 class _TomlConfigSource(PydanticBaseSettingsSource):
     """Liest Einstellungen aus conf/config.toml (flache Schluessel)."""
@@ -90,6 +94,14 @@ class Settings(BaseSettings):
 
     # Anzahl der aufzubewahrenden versionierten Modell-Backups (Rotation).
     layout_backup_count: int = 10
+
+    # Lok-Stammdaten (verwaltete Lokomotiven) als JSON-Datei. Getrennt von
+    # conf/config.toml und vom Anlagenmodell; wird vom RosterStore gelesen/
+    # geschrieben. Default liegt in conf/.
+    roster_path: Path = _DEFAULT_ROSTER_PATH
+
+    # Anzahl der aufzubewahrenden versionierten Roster-Backups (Rotation).
+    roster_backup_count: int = 10
 
     @classmethod
     def settings_customise_sources(

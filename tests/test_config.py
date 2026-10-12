@@ -63,3 +63,22 @@ def test_layout_settings_env_override(monkeypatch: Any, tmp_path: Path) -> None:
     s = config.get_settings()
     assert s.layout_path == custom
     assert s.layout_backup_count == 3
+
+
+def test_roster_settings_defaults(monkeypatch: Any, tmp_path: Path) -> None:
+    # Ohne TOML/Env greifen die Defaults fuer die Lok-Stammdaten.
+    monkeypatch.setattr(config, "_CONFIG_PATH", tmp_path / "fehlt.toml")
+    s = config.get_settings()
+    assert s.roster_path == config._DEFAULT_ROSTER_PATH
+    assert s.roster_path.name == "roster.json"
+    assert s.roster_backup_count == 10
+
+
+def test_roster_settings_env_override(monkeypatch: Any, tmp_path: Path) -> None:
+    monkeypatch.setattr(config, "_CONFIG_PATH", tmp_path / "fehlt.toml")
+    custom = tmp_path / "eigenes-roster.json"
+    monkeypatch.setenv("MB_ROSTER_PATH", str(custom))
+    monkeypatch.setenv("MB_ROSTER_BACKUP_COUNT", "3")
+    s = config.get_settings()
+    assert s.roster_path == custom
+    assert s.roster_backup_count == 3
