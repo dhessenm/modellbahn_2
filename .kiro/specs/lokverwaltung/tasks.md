@@ -133,10 +133,10 @@
 
 ## G. Abschluss
 
-- [ ] 18. Live-Verifikation
-  - Backend + Frontend starten, Lok anlegen (Test-Lok Adresse 3), im Lokführerstand auswählen,
-    Fahren testen (vertikaler Slider, richtige Fahrstufenanzahl, Funktionen). Statusleiste:
-    LED + TrackPower auf allen Seiten sichtbar.
+- [x] 18. Live-Verifikation
+  - Lok angelegt (Adresse 3), im Lokführerstand per Dropdown ausgewählt, Fahren getestet
+    (vertikaler Slider), Funktionstasten, Statusleiste LED + TrackPower auf allen Seiten.
+    Funktioniert ohne Fehler.
   - _Requirements: alle_
 
 - [x] 19. Doku nachführen
