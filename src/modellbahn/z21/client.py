@@ -87,6 +87,7 @@ class Z21UdpClient:
         self._transport: asyncio.DatagramTransport | None = None
         self._keepalive_task: asyncio.Task[None] | None = None
         self._handshake_task: asyncio.Task[None] | None = None
+        self._detectors_task: asyncio.Task[None] | None = None
         self._received_any = False
         self._warned_no_route = False
 
@@ -125,6 +126,15 @@ class Z21UdpClient:
         # Keep-Alive nach ~20 s stumm zu bleiben).
         self._handshake_task = asyncio.create_task(self._handshake_loop())
         self._keepalive_task = asyncio.create_task(self._keepalive_loop())
+        # Belegtmelder-Initialabfrage als eigener Task: Die Z21 beantwortet die
+        # CAN-Belegtabfrage direkt nach dem Verbindungsaufbau oft noch NICHT
+        # (die Melder sind noch nicht bereit). Eine einzelne Abfrage im
+        # _send_init ginge daher ins Leere -> der Belegtstatus bliebe nach dem
+        # Start leer, bis sich ein Melder zufaellig aendert. Dieser Task wieder-
+        # holt die Abfrage ein paar Mal mit kurzem Abstand, bis Belegtdaten
+        # eintreffen. Das ist kein Dauer-Polling: er endet nach wenigen
+        # Versuchen bzw. sobald CAN-Daten gesehen wurden.
+        self._detectors_task = asyncio.create_task(self._initial_detectors_loop())
 
     def _send_init(self) -> None:
         """Broadcast-Flags setzen und initiale Abfragen senden."""
@@ -146,8 +156,27 @@ class Z21UdpClient:
             except RuntimeError:
                 return
 
+    async def _initial_detectors_loop(self) -> None:
+        """Fragt den CAN-Belegtstatus nach dem Start mehrfach ab.
+
+        Hintergrund: Die Z21 beantwortet die CAN-Belegtabfrage unmittelbar nach
+        dem Verbindungsaufbau haeufig noch nicht (die Belegtmelder sind noch
+        nicht bereit). Eine einzige Abfrage im _send_init bleibt dann ohne
+        Antwort und der Belegtstatus waere nach dem Start leer, bis sich ein
+        Melder aendert. Darum wird die Abfrage hier mit kurzem Abstand einige
+        Male wiederholt, damit der aktuelle Belegtstatus zuverlaessig einmal
+        vollstaendig erfasst wird. Danach endet der Task -- es ist bewusst KEIN
+        dauerhaftes Polling (laufende Aktualisierungen kommen per Broadcast).
+        """
+        for delay in (0.5, 1.0, 2.0, 3.0):
+            await asyncio.sleep(delay)
+            try:
+                self.send(protocol.build_get_can_detectors())
+            except RuntimeError:
+                return
+
     async def stop(self) -> None:
-        for task_attr in ("_handshake_task", "_keepalive_task"):
+        for task_attr in ("_handshake_task", "_keepalive_task", "_detectors_task"):
             task: asyncio.Task[None] | None = getattr(self, task_attr)
             if task is not None:
                 task.cancel()
