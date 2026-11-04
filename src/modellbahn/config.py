@@ -31,6 +31,11 @@ _CONFIG_PATH = _PROJECT_ROOT / "conf" / "config.toml"
 # Projektwurzel, damit er unabhaengig vom Arbeitsverzeichnis stimmt.
 _DEFAULT_LAYOUT_PATH = _PROJECT_ROOT / "conf" / "layout.json"
 
+# Default-Ablageort des gebauten Frontends (Produktionsbetrieb, Single-Service).
+# Existiert das Verzeichnis, liefert das Backend die Web-UI selbst aus; fehlt es
+# (Entwicklungsbetrieb mit Vite-Dev-Server), bleibt das Backend reine API.
+_DEFAULT_FRONTEND_DIST_PATH = _PROJECT_ROOT / "frontend" / "dist"
+
 # Default-Ablageort der Lok-Stammdaten (JSON). Getrennt vom Anlagenmodell;
 # ebenfalls absolut gegen die Projektwurzel.
 _DEFAULT_ROSTER_PATH = _PROJECT_ROOT / "conf" / "roster.json"
@@ -94,6 +99,11 @@ class Settings(BaseSettings):
 
     # Anzahl der aufzubewahrenden versionierten Modell-Backups (Rotation).
     layout_backup_count: int = 10
+
+    # Gebautes Frontend (frontend/dist). Existiert das Verzeichnis, liefert das
+    # Backend die Web-UI unter / aus (Single-Service-Produktionsbetrieb). Fehlt
+    # es, bleibt das Backend reine API (Entwicklung mit Vite-Dev-Server).
+    frontend_dist_path: Path = _DEFAULT_FRONTEND_DIST_PATH
 
     # Lok-Stammdaten (verwaltete Lokomotiven) als JSON-Datei. Getrennt von
     # conf/config.toml und vom Anlagenmodell; wird vom RosterStore gelesen/

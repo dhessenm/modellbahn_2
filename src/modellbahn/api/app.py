@@ -13,11 +13,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from modellbahn.api.events import EventBroker
 from modellbahn.api.layout_routes import build_layout_router
@@ -42,6 +44,8 @@ from modellbahn.domain.roster_service import RosterService
 from modellbahn.domain.state import DetectorInput, LayoutState
 from modellbahn.logging_setup import configure_logging
 from modellbahn.z21.client import Z21Transport, Z21UdpClient
+
+logger = logging.getLogger("modellbahn.api")
 
 
 def _detector_status_text(d: DetectorInput) -> str:
@@ -185,7 +189,49 @@ def create_app(
     )
 
     _register_routes(app, controller, broker, settings)
+    _mount_frontend(app, settings)
     return app
+
+
+def _mount_frontend(app: FastAPI, settings: Settings) -> None:
+    """Liefert das gebaute Frontend aus, sofern vorhanden (Single-Service).
+
+    Existiert `settings.frontend_dist_path` (also ein gebautes `frontend/dist`),
+    so liefert das Backend die Web-UI selbst aus -- genau ein Prozess, ein Port
+    (Produktionsbetrieb auf dem Raspberry Pi). Fehlt das Verzeichnis, passiert
+    nichts und das Backend bleibt reine API (Entwicklung mit Vite-Dev-Server).
+
+    Die gehashten Build-Assets werden unter `/assets` bereitgestellt. Fuer alle
+    uebrigen GET-Pfade liefert ein SPA-Fallback `index.html`, damit Deep-Links
+    des Vue-Routers (z. B. /roster) direkt funktionieren. Bereits registrierte
+    Routen (`/api/*`, `/health`, der SSE-Endpunkt) haben Vorrang, weil FastAPI
+    konkret registrierte Routen vor der Catch-all-Route auswertet; zusaetzlich
+    schliesst der Fallback `/api`-Pfade ausdruecklich aus (404 statt index.html).
+    """
+    dist = settings.frontend_dist_path
+    index_file = dist / "index.html"
+    if not index_file.is_file():
+        logger.info("Frontend-dist nicht gefunden (%s) -- Backend laeuft als reine API.", dist)
+        return
+
+    assets_dir = dist / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/{full_path:path}")
+    def spa_fallback(full_path: str) -> Response:
+        """Liefert index.html fuer SPA-Deep-Links; API-Pfade bleiben 404."""
+        # API-/Health-Pfade nicht auf die SPA umbiegen: Eine unbekannte
+        # /api-Route soll ein ehrliches 404 liefern, keine HTML-Seite.
+        if full_path.startswith("api/") or full_path == "health":
+            raise HTTPException(status_code=404, detail="Not Found")
+        # Konkret existierende Datei im dist (z. B. favicon.ico) direkt liefern.
+        candidate = dist / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(index_file)
+
+    logger.info("Frontend wird aus %s ausgeliefert (Single-Service).", dist)
 
 
 def _register_routes(
